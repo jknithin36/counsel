@@ -67,8 +67,11 @@ export function LeadsByArea({ now, days }: { now: Date; days: number }) {
             aria-hidden="true"
             className="mx-auto aspect-square h-[236px] max-w-full"
           >
-            <PieChart>
+            {/* Hidden from assistive tech (the list below has the numbers),
+                so it must not take keyboard focus either. */}
+            <PieChart accessibilityLayer={false}>
               <Pie
+                rootTabIndex={-1}
                 data={rows}
                 dataKey="count"
                 nameKey="key"

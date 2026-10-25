@@ -26,6 +26,8 @@ const clientPages = ["/portal", "/portal/documents", "/portal/billing"];
 async function scan(page: Page, path: string) {
   await page.goto(path);
   await expect(page.locator("h1").first()).toBeVisible();
+  // Wait for lazily loaded parts (charts) so they're scanned too.
+  await page.waitForLoadState("networkidle");
   const { violations } = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
