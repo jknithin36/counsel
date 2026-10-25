@@ -13,15 +13,24 @@ to evaluate and straightforward to connect to the backend of your choice.
 
 ## Screenshots
 
-| Area | Preview |
-| --- | --- |
-| Home | _Screenshot placeholder_ |
-| Practice area | _Screenshot placeholder_ |
-| Dashboard overview | _Screenshot placeholder_ |
-| Lead pipeline | _Screenshot placeholder_ |
-| Matter detail | _Screenshot placeholder_ |
-| Client portal | _Screenshot placeholder_ |
-| Document signing | _Screenshot placeholder_ |
+<table>
+  <tr>
+    <td width="50%"><strong>Home</strong><br><img src="docs/screenshots/home.png" alt="Home page with the hero and a preview of the client portal"></td>
+    <td width="50%"><strong>Practice area</strong><br><img src="docs/screenshots/practice-area.png" alt="Personal injury practice area page"></td>
+  </tr>
+  <tr>
+    <td><strong>Dashboard overview</strong><br><img src="docs/screenshots/dashboard-overview.png" alt="Staff dashboard overview with stats, charts and upcoming work"></td>
+    <td><strong>Lead pipeline</strong><br><img src="docs/screenshots/lead-pipeline.png" alt="Drag-and-drop lead pipeline by stage"></td>
+  </tr>
+  <tr>
+    <td><strong>Matter detail</strong><br><img src="docs/screenshots/matter-detail.png" alt="Matter detail with stage progress, tasks and updates"></td>
+    <td><strong>Client portal</strong><br><img src="docs/screenshots/client-portal.png" alt="Client portal overview with to-dos, case progress and messages"></td>
+  </tr>
+  <tr>
+    <td><strong>Document signing</strong><br><img src="docs/screenshots/document-signing.png" alt="Client signing a document with a typed signature"></td>
+    <td></td>
+  </tr>
+</table>
 
 ## Features
 
@@ -186,7 +195,7 @@ desktop and mobile before launch.
 
 ## Roadmap
 
-- Publish a hosted demo and final screenshot set
+- Link the hosted demo in this README
 - Add reference adapters for Postgres/Drizzle and common auth providers
   (see [docs/BACKEND.md](docs/BACKEND.md) for the integration points)
 - Expand cross-browser end-to-end coverage (Firefox, WebKit)
