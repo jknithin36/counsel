@@ -267,6 +267,11 @@ export function CalendarView({
                     (row.duration / 60) * HOUR_PX - 2,
                     22,
                   );
+                  // Fit the content to the block: short slots (30 min) get
+                  // one line, and the practice area only shows when there's
+                  // room for a third line.
+                  const compact = height < 40;
+                  const roomy = height >= 56;
                   const muted =
                     row.status === "completed" || row.status === "cancelled";
                   return (
@@ -275,7 +280,8 @@ export function CalendarView({
                       type="button"
                       onClick={() => onOpen(row.id)}
                       className={cn(
-                        "absolute overflow-hidden rounded-r-sm border-l-2 border-[#111] bg-[#F2F2F2] px-1.5 py-1 text-left text-[12px] leading-tight outline-none hover:bg-[#E8E8E8] focus-visible:ring-2 focus-visible:ring-ring",
+                        "absolute overflow-hidden rounded-r-sm border-l-2 border-[#111] bg-[#F2F2F2] px-1.5 text-left text-[12px] leading-tight outline-none hover:bg-[#E8E8E8] focus-visible:ring-2 focus-visible:ring-ring",
+                        compact ? "flex items-center gap-1.5 py-0" : "py-1",
                         muted && "border-[#BDBDBD] text-muted-foreground",
                       )}
                       style={{
@@ -286,13 +292,18 @@ export function CalendarView({
                       }}
                       aria-label={`${row.name}, ${format(row.startDate, "EEEE h:mm a")}, ${row.status.replace("_", " ")}`}
                     >
-                      <span className="block tabular-nums">
+                      <span
+                        className={cn(
+                          "tabular-nums",
+                          compact ? "shrink-0" : "block",
+                        )}
+                      >
                         {format(row.startDate, "h:mm")}
                         {view === "day" && ` – ${format(row.end, "h:mm a")}`}
                       </span>
                       <span
                         className={cn(
-                          "flex items-center gap-1 truncate font-medium",
+                          "flex min-w-0 items-center gap-1 truncate font-medium",
                           (row.status === "no_show" ||
                             row.status === "cancelled") &&
                             "line-through",
@@ -306,7 +317,7 @@ export function CalendarView({
                         )}
                         <span className="truncate">{row.name}</span>
                       </span>
-                      {row.lead && (
+                      {row.lead && roomy && (
                         <span className="block truncate text-muted-foreground">
                           {practiceAreaLabel(row.lead.practiceArea)}
                           {view === "day" &&
