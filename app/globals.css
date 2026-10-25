@@ -211,7 +211,18 @@
   }
 }
 
-/* Compact table rows (Profile › Preferences). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+  }
+}
+
+/* Compact table rows (Profile › Preferences) */
 [data-density="compact"] [data-slot="table-head"] {
   height: 2rem;
 }
@@ -221,4 +232,10 @@
 [data-density="compact"] [data-slot="table-cell"] {
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
+}
+
+/* Serif italics use the separately loaded italic face (see app/layout.tsx). */
+.font-serif.italic,
+.font-heading.italic {
+  font-family: var(--font-newsreader-italic), var(--font-newsreader), serif;
 }

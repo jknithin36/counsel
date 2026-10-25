@@ -11,7 +11,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
 import {
@@ -603,13 +603,15 @@ export function ConsultationForm() {
 
 function Progress({ step }: { step: number }) {
   const total = c.steps.length;
+  const labelId = useId();
   return (
     <div>
-      <p className="text-[13px] font-medium text-muted-foreground">
+      <p id={labelId} className="text-[13px] font-medium text-muted-foreground">
         {c.stepOf(step + 1, total)}
       </p>
       <div
         role="progressbar"
+        aria-labelledby={labelId}
         aria-valuemin={1}
         aria-valuemax={total}
         aria-valuenow={step + 1}

@@ -267,7 +267,7 @@ export function LoginPanel() {
         </Button>
       </form>
 
-      <p className="mt-8 text-[12px] text-[#8a8a8a]">{a.footerNote}</p>
+      <p className="mt-8 text-[12px] text-muted-foreground">{a.footerNote}</p>
     </div>
   );
 }

@@ -1,5 +1,13 @@
 import { firm } from "@/lib/config/firm";
 
+/** Site-wide defaults for titles, descriptions and social cards. */
+export const siteMeta = {
+  title: `${firm.name} | Attorneys at Law`,
+  tagline: "Serious counsel for life’s hardest moments",
+  description:
+    "Personal injury, family law, estate planning, business law and criminal defense. Attorneys who listen, explain every step and fight for the right outcome. Free first consultation.",
+};
+
 /** "a Family Law" / "an Estate Planning" */
 export const withArticle = (word: string) =>
   `${/^[aeiou]/i.test(word) ? "an" : "a"} ${word}`;

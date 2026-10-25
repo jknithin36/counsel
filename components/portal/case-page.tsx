@@ -1,193 +1,134 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { casePage as copy, stageExplanations } from "@/lib/content/portal";
+import { practiceAreaLabel } from "@/lib/data/labels";
 import { findDemoUser } from "@/lib/data/seed/users";
 import { matterStages, stageLabel } from "@/lib/data/stages";
-import { useDemoStore } from "@/lib/data/store";
 import { formatDate } from "@/lib/format";
-import { MATTER_ID, Person, PortalPage } from "./shared";
-
-const explanation: Record<string, string> = {
-  intake:
-    "We opened your file, confirmed the basic facts, and collected the first documents.",
-  investigation:
-    "We gathered records, photos, bills, and other evidence to understand what happened.",
-  demand:
-    "We sent the insurer a clear summary of your injuries, losses, and requested resolution.",
-  negotiation:
-    "We're discussing a settlement with the insurance company. We'll share any offer with you before deciding anything.",
-  litigation:
-    "If a fair agreement is not possible, the case may move to court and formal evidence exchange.",
-  resolution:
-    "We finalize the agreement, payments, and closing paperwork with you.",
-};
+import { CardEmpty, SectionCard } from "../dashboard/section-card";
+import { Person, PortalPage } from "./shared";
+import { StageSteps } from "./stage-steps";
+import { usePortal } from "./use-portal";
 
 export function CasePage() {
-  const matter = useDemoStore((s) =>
-    s.matters.find((item) => item.id === MATTER_ID),
-  );
+  const { matter } = usePortal();
   if (!matter)
     return (
-      <PortalPage title="My Case">
-        <p>Case details are not available.</p>
+      <PortalPage title={copy.title}>
+        <CardEmpty>{copy.notFound}</CardEmpty>
       </PortalPage>
     );
+
   const steps = matterStages[matter.practiceArea];
-  const current = steps.findIndex((step) => step.key === matter.stage);
-  const next = steps[current + 1];
-  const updates = matter.updates.filter((update) => update.shared).toReversed();
+  const next = steps[steps.findIndex((s) => s.key === matter.stage) + 1];
+  const updates = matter.updates.filter((u) => u.shared).toReversed();
+  const d = copy.details;
+
   return (
     <PortalPage
       title={matter.title}
-      description={`${matter.id} · Personal injury · Opened ${formatDate(matter.openedAt)}`}
+      description={copy.meta(
+        matter.id,
+        practiceAreaLabel(matter.practiceArea),
+        formatDate(matter.openedAt),
+      )}
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>Your case progress</CardTitle>
-          <CardDescription>
-            Each step can take a different amount of time. We will keep you
-            updated.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ol className="grid gap-3 md:grid-cols-6">
-            {steps.map((step, index) => (
-              <li
-                key={step.key}
-                className={`rounded-lg border p-4 md:min-h-36 ${index === current ? "border-foreground bg-foreground text-background" : index < current ? "bg-muted" : "text-muted-foreground"}`}
-              >
-                <span className="text-xs">Step {index + 1}</span>
-                <p className="mt-2 font-medium">{step.label}</p>
-                <p
-                  className={`mt-2 text-xs leading-relaxed ${index === current ? "text-background/75" : "text-muted-foreground"}`}
-                >
-                  {explanation[step.key]}
-                </p>
-              </li>
-            ))}
-          </ol>
-        </CardContent>
-      </Card>
-      <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Case timeline</CardTitle>
-            <CardDescription>
-              Only updates shared with you appear here.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {updates.length ? (
-                updates.map((update) => (
-                  <article
-                    key={update.id}
-                    className="relative border-l pl-6 before:absolute before:-left-1.5 before:top-1 before:size-3 before:rounded-full before:bg-foreground"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="font-sans text-base font-medium tracking-normal">
-                        {update.title}
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
+          <SectionCard
+            title={copy.timeline.title}
+            description={copy.timeline.description}
+          >
+            {updates.length === 0 ? (
+              <CardEmpty>{copy.timeline.empty}</CardEmpty>
+            ) : (
+              <ol className="flex flex-col divide-y">
+                {updates.map((u) => (
+                  <li key={u.id} className="py-5 first:pt-0 last:pb-0">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                      <h3 className="font-sans text-sm font-medium tracking-normal">
+                        {u.title}
                       </h3>
-                      <time className="text-xs text-muted-foreground">
-                        {formatDate(update.createdAt)}
+                      <time
+                        dateTime={u.createdAt}
+                        className="text-xs text-muted-foreground tabular-nums"
+                      >
+                        {formatDate(u.createdAt)}
                       </time>
                     </div>
-                    <p className="mt-2 leading-relaxed text-muted-foreground">
-                      {update.body}
+                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                      {u.body}
                     </p>
-                    <div className="mt-3">
-                      <Person userId={update.authorId} />
-                    </div>
-                  </article>
-                ))
-              ) : (
-                <p className="text-muted-foreground">
-                  No case updates have been shared yet.
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>What happens next</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="font-medium">
-                {next?.label ?? "Finishing your matter"}
-              </p>
-              <p className="mt-2 leading-relaxed text-muted-foreground">
-                {next
-                  ? explanation[next.key]
-                  : "We will confirm that every final document and payment is complete."}
-              </p>
-              {matter.nextAppointment && (
-                <p className="mt-4 rounded-lg bg-muted p-3">
-                  <span className="block text-xs text-muted-foreground">
-                    Next appointment
-                  </span>
-                  {formatDate(matter.nextAppointment.start, true)}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Key details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="space-y-3">
-                <div>
-                  <dt className="text-xs text-muted-foreground">Case type</dt>
-                  <dd>Personal injury</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">
-                    Lead attorney
-                  </dt>
-                  <dd>{findDemoUser(matter.leadAttorneyId)?.name}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">
-                    Fee arrangement
-                  </dt>
-                  <dd>
-                    Contingency: you pay no attorney fee unless we recover money
-                    for you.
-                  </dd>
-                </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {copy.timeline.by(findDemoUser(u.authorId)?.name ?? "")}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </SectionCard>
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-4">
+          <SectionCard title={copy.next.title}>
+            <p className="text-sm font-medium">
+              {next?.label ?? copy.next.finishing}
+            </p>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+              {next ? stageExplanations[next.key] : copy.next.finishingBody}
+            </p>
+          </SectionCard>
+
+          <SectionCard
+            title={copy.progress.title}
+            description={copy.progress.description}
+          >
+            <StageSteps matter={matter} explain />
+          </SectionCard>
+
+          <SectionCard title={d.title}>
+            <dl className="flex flex-col gap-4 text-sm">
+              <div>
+                <dt className="text-xs text-muted-foreground">{d.attorney}</dt>
+                <dd className="mt-1.5">
+                  <Person userId={matter.leadAttorneyId} />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">{d.type}</dt>
+                <dd className="mt-1">
+                  {practiceAreaLabel(matter.practiceArea)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">{d.stage}</dt>
+                <dd className="mt-1">
+                  {stageLabel(matter.practiceArea, matter.stage)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">{d.fee}</dt>
+                <dd className="mt-1 leading-relaxed">
+                  {copy.feeTypes[matter.feeType]}
+                </dd>
+              </div>
+              {matter.nextDeadline && (
                 <div>
                   <dt className="text-xs text-muted-foreground">
-                    Current stage
+                    {d.deadline}
                   </dt>
-                  <dd>
-                    <Badge variant="secondary">
-                      {stageLabel(matter.practiceArea, matter.stage)}
-                    </Badge>
-                  </dd>
-                </div>
-                {matter.nextDeadline && (
-                  <div>
-                    <dt className="text-xs text-muted-foreground">
-                      Important date
-                    </dt>
-                    <dd>
-                      {formatDate(matter.nextDeadline.date)} —{" "}
+                  <dd className="mt-1">
+                    <span className="tabular-nums">
+                      {formatDate(matter.nextDeadline.date)}
+                    </span>
+                    <span className="block text-muted-foreground">
                       {matter.nextDeadline.label}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-            </CardContent>
-          </Card>
+                    </span>
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </SectionCard>
         </div>
       </div>
     </PortalPage>

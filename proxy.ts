@@ -1,10 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { homeFor, isRole, isStaff, SESSION_COOKIE } from "@/lib/auth/roles";
+import { demoMode } from "@/lib/config/env";
 
 /**
  * Demo route guard. Reads the role cookie set at sign-in and redirects
- * before render: /dashboard is staff-only, /portal is client-only, and a
- * signed-in user visiting /login goes to their own home.
+ * before render: /dashboard is staff-only, /portal is client-only. Outside
+ * demo mode a signed-in user visiting /login goes to their own home; in demo
+ * mode the login page stays open so the demo buttons can switch accounts.
  */
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -14,7 +16,7 @@ export function proxy(request: NextRequest) {
     NextResponse.redirect(new URL(path, request.url));
 
   if (pathname === "/login") {
-    return role ? redirect(homeFor(role)) : NextResponse.next();
+    return role && !demoMode ? redirect(homeFor(role)) : NextResponse.next();
   }
 
   const wantsDashboard = pathname.startsWith("/dashboard");

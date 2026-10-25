@@ -1,225 +1,186 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
-import { useDemoStore } from "@/lib/data/store";
+import { profilePage as copy } from "@/lib/content/portal";
+import { updatePortalProfile } from "@/lib/data/portal";
 import type { Client } from "@/lib/data/types";
-import { CLIENT_ID, PortalPage } from "./shared";
+import { formatPhone } from "@/lib/format";
+import { ChoiceSelect } from "../dashboard/content/shared";
+import { EditorCard, useDirty } from "../dashboard/editor-kit";
+import { SectionCard } from "../dashboard/section-card";
+import { PortalPage } from "./shared";
+import { usePortal } from "./use-portal";
 
-export function ProfilePage() {
-  const client = useDemoStore((s) =>
-    s.clients.find((item) => item.id === CLIENT_ID),
-  );
-  const [values, setValues] = useState({
-    email: "",
-    phone: "",
-    address: "",
-    preferredContact: "email" as NonNullable<Client["preferredContact"]>,
-    language: "English" as Client["language"],
-    notificationEmail: true,
-    notificationText: false,
-  });
-  useEffect(() => {
-    if (client)
-      setValues({
-        email: client.email,
-        phone: client.phone,
-        address: client.address,
-        preferredContact: client.preferredContact ?? "email",
-        language: client.language,
-        notificationEmail: client.notificationEmail ?? true,
-        notificationText: client.notificationText ?? false,
-      });
-  }, [client]);
-  if (!client)
-    return (
-      <PortalPage title="Profile">
-        <p>Profile is not available.</p>
-      </PortalPage>
-    );
-  const save = () => {
-    useDemoStore.getState().mutate((data) => ({
-      clients: data.clients.map((item) =>
-        item.id === CLIENT_ID ? { ...item, ...values } : item,
-      ),
-      activityLog: [
-        {
-          id: crypto.randomUUID(),
-          createdAt: new Date().toISOString(),
-          type: "client_updated",
-          actorId: "u-maria",
-          message: "Maria Delgado updated her portal profile",
-          href: `/dashboard/clients/${CLIENT_ID}`,
-        },
-        ...data.activityLog,
-      ],
-    }));
-    if (values.language === "Spanish")
-      toast.add({
-        title: "Profile saved",
-        description: "Spanish portal labels are coming soon.",
-        type: "success",
-      });
-    else toast.add({ title: "Profile saved", type: "success" });
+function save(patch: Partial<Client>) {
+  updatePortalProfile(patch);
+  toast.add({ title: copy.saved });
+}
+
+function ContactCard({ client }: { client: Client }) {
+  const id = useId();
+  const c = copy.contact;
+  const live = {
+    email: client.email,
+    phone: client.phone,
+    address: client.address,
+    preferredContact: client.preferredContact ?? "email",
+    language: client.language,
   };
+  const [draft, setDraft] = useState(live);
+  const dirty = useDirty(draft, live);
+  const set = (patch: Partial<typeof draft>) =>
+    setDraft((d) => ({ ...d, ...patch }));
+  const emailError = /^\S+@\S+\.\S+$/.test(draft.email.trim())
+    ? ""
+    : c.invalidEmail;
+
   return (
-    <PortalPage
-      title="Profile"
-      description="Keep your contact details and preferences up to date."
+    <EditorCard
+      kind="settings"
+      title={c.title}
+      description={c.description}
+      dirty={dirty}
+      canSave={!emailError}
+      onDiscard={() => setDraft(live)}
+      onSave={() => save({ ...draft, email: draft.email.trim() })}
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>Contact information</CardTitle>
-          <CardDescription>
-            Your legal team sees these updates immediately.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-5 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label htmlFor="profile-name">Name</Label>
-            <Input id="profile-name" value={client.name} readOnly />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="profile-email">Email</Label>
-            <Input
-              id="profile-email"
-              type="email"
-              value={values.email}
-              onChange={(event) =>
-                setValues({ ...values, email: event.target.value })
-              }
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="profile-phone">Phone</Label>
-            <Input
-              id="profile-phone"
-              value={values.phone}
-              onChange={(event) =>
-                setValues({ ...values, phone: event.target.value })
-              }
-            />
-          </div>
-          <div className="grid gap-2 sm:col-span-2">
-            <Label htmlFor="profile-address">Mailing address</Label>
-            <Input
-              id="profile-address"
-              value={values.address}
-              onChange={(event) =>
-                setValues({ ...values, address: event.target.value })
-              }
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label>Preferred contact</Label>
-            <Select
-              value={values.preferredContact}
-              onValueChange={(value) =>
-                setValues({
-                  ...values,
-                  preferredContact: value as NonNullable<
-                    Client["preferredContact"]
-                  >,
-                })
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="email">Email</SelectItem>
-                <SelectItem value="phone">Phone</SelectItem>
-                <SelectItem value="text">Text</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label>Language</Label>
-            <Select
-              value={values.language}
-              onValueChange={(value) =>
-                setValues({ ...values, language: value as Client["language"] })
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="English">English</SelectItem>
-                <SelectItem value="Spanish">Español</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="sm:col-span-2">
-            <Button onClick={save}>Save changes</Button>
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Notifications</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Label className="flex min-h-12 items-center justify-between gap-4 rounded-lg border p-3">
-            Email updates
-            <Switch
-              checked={values.notificationEmail}
-              onCheckedChange={(checked) =>
-                setValues({ ...values, notificationEmail: checked })
-              }
-            />
-          </Label>
-          <Label className="flex min-h-12 items-center justify-between gap-4 rounded-lg border p-3">
-            Text updates
-            <Switch
-              checked={values.notificationText}
-              onCheckedChange={(checked) =>
-                setValues({ ...values, notificationText: checked })
-              }
-            />
-          </Label>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Password</CardTitle>
-          <CardDescription>
-            Password changes are disabled in this demo.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            variant="outline"
-            onClick={() =>
-              toast.add({
-                title: "Demo account",
-                description: "Password changes aren't available in the demo.",
-                type: "info",
+      <Field>
+        <FieldLabel htmlFor={`${id}-name`}>{c.name}</FieldLabel>
+        <Input id={`${id}-name`} value={client.name} readOnly disabled />
+        <FieldDescription>{c.nameHint}</FieldDescription>
+      </Field>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field data-invalid={Boolean(emailError) || undefined}>
+          <FieldLabel htmlFor={`${id}-email`}>{c.email}</FieldLabel>
+          <Input
+            id={`${id}-email`}
+            type="email"
+            value={draft.email}
+            aria-invalid={Boolean(emailError) || undefined}
+            onChange={(e) => set({ email: e.target.value })}
+          />
+          <FieldError>{emailError || undefined}</FieldError>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${id}-phone`}>{c.phone}</FieldLabel>
+          <Input
+            id={`${id}-phone`}
+            type="tel"
+            inputMode="tel"
+            value={draft.phone}
+            onChange={(e) => set({ phone: formatPhone(e.target.value) })}
+          />
+        </Field>
+      </div>
+      <Field>
+        <FieldLabel htmlFor={`${id}-address`}>{c.address}</FieldLabel>
+        <Input
+          id={`${id}-address`}
+          value={draft.address}
+          onChange={(e) => set({ address: e.target.value })}
+        />
+      </Field>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field>
+          <FieldLabel htmlFor={`${id}-preferred`}>{c.preferred}</FieldLabel>
+          <ChoiceSelect
+            id={`${id}-preferred`}
+            value={draft.preferredContact}
+            onChange={(v) =>
+              set({
+                preferredContact: v as NonNullable<Client["preferredContact"]>,
               })
             }
-          >
-            Change password
-          </Button>
-        </CardContent>
-      </Card>
+            options={c.preferredOptions}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${id}-language`}>{c.language}</FieldLabel>
+          <ChoiceSelect
+            id={`${id}-language`}
+            value={draft.language}
+            onChange={(v) => set({ language: v as Client["language"] })}
+            options={c.languages}
+          />
+        </Field>
+      </div>
+    </EditorCard>
+  );
+}
+
+function NotificationsCard({ client }: { client: Client }) {
+  const n = copy.notifications;
+  const live = {
+    notificationEmail: client.notificationEmail ?? true,
+    notificationText: client.notificationText ?? false,
+  };
+  const [draft, setDraft] = useState(live);
+  const dirty = useDirty(draft, live);
+  const rows = [
+    { key: "notificationEmail", label: n.email },
+    { key: "notificationText", label: n.text },
+  ] as const;
+
+  return (
+    <EditorCard
+      kind="settings"
+      title={n.title}
+      description={n.description}
+      dirty={dirty}
+      onDiscard={() => setDraft(live)}
+      onSave={() => save(draft)}
+    >
+      <ul className="flex flex-col divide-y rounded-md border">
+        {rows.map((row) => (
+          <li key={row.key}>
+            {/* biome-ignore lint/a11y/noLabelWithoutControl: the switch renders inside the label */}
+            <label className="flex items-center justify-between gap-4 px-3 py-3 text-sm">
+              {row.label}
+              <Switch
+                checked={draft[row.key]}
+                onCheckedChange={(on) =>
+                  setDraft((d) => ({ ...d, [row.key]: on }))
+                }
+              />
+            </label>
+          </li>
+        ))}
+      </ul>
+    </EditorCard>
+  );
+}
+
+export function ProfilePage() {
+  const { client, user } = usePortal();
+  const p = copy.password;
+  return (
+    <PortalPage title={copy.title} description={copy.subtitle}>
+      {client && user && (
+        <div className="flex max-w-3xl flex-col gap-4">
+          <ContactCard client={client} />
+          <NotificationsCard client={client} />
+          <SectionCard title={p.title} description={p.description}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => toast.add({ title: p.disabled })}
+            >
+              {p.action}
+            </Button>
+          </SectionCard>
+        </div>
+      )}
     </PortalPage>
   );
 }

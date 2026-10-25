@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export const inputClass =
-  "h-12 w-full rounded-button border border-[#d4d4d4] bg-white px-4 text-[16px] text-[#111] placeholder:text-[#8a8a8a] aria-invalid:border-[#b42318]";
+  "h-12 w-full rounded-button border border-[#d4d4d4] bg-white px-4 text-[16px] text-[#111] placeholder:text-[#757575] aria-invalid:border-[#b42318]";
 
 export const textareaClass = cn(
   inputClass,

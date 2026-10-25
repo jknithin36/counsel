@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import { contentPage as copy } from "@/lib/content/dashboard-admin";
-import { useDemoStore } from "@/lib/data/store";
+import { resetContent } from "@/lib/data/admin";
 import { useDemoStatus } from "../demo-data-provider";
 import { DirtyReporter } from "../editor-kit";
 import { LeaveGuard } from "../leave-guard";
@@ -79,7 +79,7 @@ export function ContentPage() {
   }
 
   function reset() {
-    useDemoStore.getState().resetContent();
+    resetContent();
     setGeneration((g) => g + 1);
     setResetOpen(false);
     toast.add({ title: copy.resetDone });

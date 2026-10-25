@@ -1,51 +1,65 @@
 "use client";
 
-import { animate, useInView, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
 // "$48M+" → ["$", "48", "M+"]; values without digits ("No fee") stay static.
 const NUMERIC = /^(\D*)(\d+(?:\.\d+)?)(.*)$/;
+const DURATION = 1200;
+const easeOut = (t: number) => 1 - (1 - t) ** 3;
 
 /**
  * Counts the numeric part of `value` up from 0 the first time it scrolls into
- * view. The server renders the final value. The number is rendered once, so
+ * view. The server renders the final value, and people who prefer reduced
+ * motion only ever see the final value. The number is rendered once, so
  * copied text and screen readers get a single clean value.
  */
 export function CountUp({ value }: { value: string }) {
   const match = value.match(NUMERIC);
   const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, amount: 0.6 });
-  const reduce = useReducedMotion();
   const [display, setDisplay] = useState(value);
 
-  const prefix = match?.[1] ?? "";
-  const target = match ? Number(match[2]) : 0;
-  const decimals = match?.[2].split(".")[1]?.length ?? 0;
-  const suffix = match?.[3] ?? "";
-  const format = (n: number) => `${prefix}${n.toFixed(decimals)}${suffix}`;
-
-  // Reset to 0 before the strip is visible, so the count starts from zero.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once per value
   useEffect(() => {
-    if (match && !reduce && !inView) setDisplay(format(0));
-  }, []);
+    const el = ref.current;
+    if (!match || !el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: start once in view
-  useEffect(() => {
-    if (!match || reduce || !inView) return;
-    const controls = animate(0, target, {
-      duration: 1.2,
-      ease: "easeOut",
-      onUpdate: (n) => setDisplay(format(n)),
-    });
-    return () => controls.stop();
-  }, [inView, reduce]);
+    const [, prefix, number, suffix] = match;
+    const target = Number(number);
+    const decimals = number.split(".")[1]?.length ?? 0;
+    const format = (n: number) => `${prefix}${n.toFixed(decimals)}${suffix}`;
+
+    let frame = 0;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        observer.disconnect();
+        const start = performance.now();
+        const tick = (now: number) => {
+          const t = Math.min(1, (now - start) / DURATION);
+          setDisplay(format(target * easeOut(t)));
+          if (t < 1) frame = requestAnimationFrame(tick);
+        };
+        frame = requestAnimationFrame(tick);
+      },
+      { threshold: 0.6 },
+    );
+
+    // Start from zero only if the strip isn't already on screen.
+    const rect = el.getBoundingClientRect();
+    if (rect.top > window.innerHeight) setDisplay(format(0));
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [value]);
 
   if (!match) return <span>{value}</span>;
 
   return (
     <span ref={ref} className="tabular-nums">
-      {reduce ? value : display}
+      {display}
     </span>
   );
 }

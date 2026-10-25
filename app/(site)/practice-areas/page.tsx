@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CtaBand } from "@/components/site/cta-band";
 import { PageHeader } from "@/components/site/page-header";
@@ -11,11 +10,13 @@ import {
 import type { TextureTone } from "@/components/ui/texture-panel";
 import { practiceAreasPage as copy } from "@/lib/content/pages";
 import { practiceAreas } from "@/lib/content/practice-areas";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: copy.metaTitle,
   description: copy.intro,
-};
+  path: "/practice-areas",
+});
 
 const tones: TextureTone[] = ["charcoal", "sage", "olive"];
 

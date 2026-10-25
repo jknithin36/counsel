@@ -1,14 +1,15 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ConsultationForm } from "@/components/site/consultation/consultation-form";
 import { NextStepsPanel } from "@/components/site/consultation/next-steps-panel";
 import { PageHeader } from "@/components/site/page-header";
 import { consultation as c } from "@/lib/content/consultation";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: c.metaTitle,
   description: c.intro,
-};
+  path: "/consultation",
+});
 
 export default function ConsultationPage() {
   return (

@@ -15,7 +15,6 @@
       "!build",
       "!components/ui",
       "!hooks",
-      "!lib/highlighter.tsx",
       "!lib/utils.ts"
     ]
   },

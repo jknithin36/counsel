@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/components/ui/toast";
 import { settingsPage } from "@/lib/content/dashboard-admin";
+import { resetCustomizations } from "@/lib/data/admin";
 import { resetDemoData } from "@/lib/data/demo-data";
 import { STORE_KEY, useDemoStore } from "@/lib/data/store";
 import { SectionCard } from "../section-card";
@@ -69,7 +70,7 @@ export function DemoSettings() {
 
   function reset() {
     resetDemoData();
-    useDemoStore.getState().resetCustomizations();
+    resetCustomizations();
     setConfirmOpen(false);
     toast.add({ title: copy.resetDone });
   }

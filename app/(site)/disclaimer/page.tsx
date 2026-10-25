@@ -1,13 +1,14 @@
-import type { Metadata } from "next";
 import { LegalDocument } from "@/components/site/legal-document";
 import { legalDocs } from "@/lib/content/legal";
+import { createPageMetadata } from "@/lib/metadata";
 
 const doc = legalDocs.disclaimer;
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: doc.title,
   description: doc.intro,
-};
+  path: "/disclaimer",
+});
 
 export default function LegalPage() {
   return <LegalDocument doc={doc} />;

@@ -28,6 +28,7 @@ import {
 } from "@/lib/content/pages";
 import { getPracticeArea, practiceAreas } from "@/lib/content/practice-areas";
 import { resultsByIds } from "@/lib/content/results";
+import { createPageMetadata } from "@/lib/metadata";
 import { absoluteUrl } from "@/lib/site-url";
 
 export const dynamicParams = false;
@@ -41,7 +42,12 @@ export async function generateMetadata({
 }: PageProps<"/practice-areas/[slug]">): Promise<Metadata> {
   const area = getPracticeArea((await params).slug);
   if (!area) return {};
-  return { title: copy.metaTitle(area.title), description: area.intro };
+  return createPageMetadata({
+    title: copy.metaTitle(area.title),
+    description: area.intro,
+    path: area.href,
+    ownImage: true,
+  });
 }
 
 export default async function PracticeAreaPage({

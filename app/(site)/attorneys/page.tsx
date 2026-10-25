@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AttorneyCard, AttorneyTexture } from "@/components/site/attorney-card";
 import { AttorneyFilter } from "@/components/site/attorneys/attorney-filter";
@@ -11,11 +10,13 @@ import { PageHeader } from "@/components/site/page-header";
 import { attorneys } from "@/lib/content/attorneys";
 import { attorneysPage as copy } from "@/lib/content/pages";
 import { practiceAreas } from "@/lib/content/practice-areas";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: copy.metaTitle,
   description: copy.intro,
-};
+  path: "/attorneys",
+});
 
 export default function AttorneysPage() {
   const cards: AttorneyCardItem[] = attorneys.map((attorney, index) => ({

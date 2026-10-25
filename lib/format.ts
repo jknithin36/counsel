@@ -1,4 +1,4 @@
-import { format, formatDistanceToNowStrict } from "date-fns";
+import { format, formatDistanceStrict } from "date-fns";
 
 /** "(555) 555-0148" from any string of digits; partial input stays partial. */
 export function formatPhone(value: string) {
@@ -35,7 +35,7 @@ export function initials(name: string) {
 export function timeAgo(iso: string, now = new Date()) {
   const date = new Date(iso);
   if (now.getTime() - date.getTime() < 60_000) return "Just now";
-  return formatDistanceToNowStrict(date, { addSuffix: true })
+  return formatDistanceStrict(date, now, { addSuffix: true })
     .replace(/ seconds?/, "s")
     .replace(/ minutes?/, "m")
     .replace(/ hours?/, "h")

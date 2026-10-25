@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { editorCopy, settingsPage } from "@/lib/content/dashboard-admin";
-import { currentUser } from "@/lib/data/leads";
+import { saveContent } from "@/lib/data/admin";
 import { useDemoStore } from "@/lib/data/store";
 import type { FirmProfile } from "@/lib/data/types";
 import { formatPhone } from "@/lib/format";
@@ -97,18 +97,14 @@ export function FirmSettings() {
         setLanguages(live.languages.join(", "));
       }}
       onSave={() => {
-        useDemoStore.getState().setContent(
-          "firm",
-          {
-            firm: {
-              ...value,
-              name: value.name.trim(),
-              legalName: value.legalName.trim(),
-              email: value.email.trim(),
-            },
+        saveContent("firm", {
+          firm: {
+            ...value,
+            name: value.name.trim(),
+            legalName: value.legalName.trim(),
+            email: value.email.trim(),
           },
-          currentUser().name,
-        );
+        });
         toast.add({ title: editorCopy.saved(settingsPage.savedName.firm) });
       }}
     >

@@ -37,6 +37,7 @@ import {
 import type { StaffRole } from "@/lib/auth/roles";
 import { defaultTeam } from "@/lib/config/defaults";
 import { editorCopy, settingsPage } from "@/lib/content/dashboard-admin";
+import { saveTeam } from "@/lib/data/admin";
 import { currentUser } from "@/lib/data/leads";
 import { useDemoStore } from "@/lib/data/store";
 import type { TeamMember } from "@/lib/data/types";
@@ -76,17 +77,7 @@ export function TeamSettings() {
     );
 
   function save() {
-    useDemoStore.getState().setTeam(draft);
-    // Record who published, alongside the other settings sections.
-    useDemoStore.setState((s) => ({
-      settings: {
-        ...s.settings,
-        published: {
-          ...s.settings.published,
-          team: { at: new Date().toISOString(), by: currentUser().name },
-        },
-      },
-    }));
+    saveTeam(draft);
     toast.add({ title: editorCopy.saved(settingsPage.savedName.team) });
   }
 

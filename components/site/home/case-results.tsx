@@ -63,7 +63,7 @@ export function CaseResults() {
             ))}
           </ul>
 
-          <p className="mt-10 text-[12px] text-white/40">{disclaimer}</p>
+          <p className="mt-10 text-[12px] text-white/60">{disclaimer}</p>
         </div>
       </div>
     </section>

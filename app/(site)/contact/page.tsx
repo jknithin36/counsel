@@ -1,6 +1,5 @@
 import { Location01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowIcon } from "@/components/site/arrow-icon";
 import { ContactForm } from "@/components/site/contact/contact-form";
@@ -13,11 +12,13 @@ import { PageHeader } from "@/components/site/page-header";
 import { SectionHeading } from "@/components/site/section-heading";
 import { TexturePanel } from "@/components/ui/texture-panel";
 import { contactPage as c } from "@/lib/content/pages";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: c.metaTitle,
   description: c.intro,
-};
+  path: "/contact",
+});
 
 export default function ContactPage() {
   const rows = [

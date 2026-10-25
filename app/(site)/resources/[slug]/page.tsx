@@ -14,6 +14,7 @@ import { getAttorney } from "@/lib/content/attorneys";
 import { getGuide, guideDisclaimer, guides } from "@/lib/content/guides";
 import { formatDate, guidePage, resourcesPage } from "@/lib/content/pages";
 import { getPracticeArea } from "@/lib/content/practice-areas";
+import { createPageMetadata } from "@/lib/metadata";
 import { absoluteUrl } from "@/lib/site-url";
 
 export const dynamicParams = false;
@@ -27,11 +28,13 @@ export async function generateMetadata({
 }: PageProps<"/resources/[slug]">): Promise<Metadata> {
   const guide = getGuide((await params).slug);
   if (!guide) return {};
-  return {
+  return createPageMetadata({
     title: guide.title,
     description: guide.excerpt,
-    openGraph: { type: "article", publishedTime: guide.publishedAt },
-  };
+    path: `/resources/${guide.slug}`,
+    type: "article",
+    publishedTime: guide.publishedAt,
+  });
 }
 
 export default async function GuidePage({

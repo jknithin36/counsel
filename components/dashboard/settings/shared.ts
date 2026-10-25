@@ -8,7 +8,7 @@ import {
   restrictedMessage,
 } from "@/lib/auth/permissions";
 import { editorCopy } from "@/lib/content/dashboard-admin";
-import { currentUser } from "@/lib/data/leads";
+import { saveSettings } from "@/lib/data/admin";
 import { useDemoStore } from "@/lib/data/store";
 import type { Settings } from "@/lib/data/types";
 import { useSettings } from "@/lib/site-content";
@@ -39,7 +39,7 @@ export function useSettingsDraft<K extends Section>(section: K, name: string) {
     published,
     discard: () => setDraft(live),
     save: (value: Settings[K] = draft) => {
-      useDemoStore.getState().setSettings(section, value, currentUser().name);
+      saveSettings(section, value);
       toast.add({ title: editorCopy.saved(name) });
     },
   };

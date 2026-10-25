@@ -8,6 +8,7 @@ import { TexturePanel } from "@/components/ui/texture-panel";
 import { firm } from "@/lib/config/firm";
 import { attorneys, getAttorney } from "@/lib/content/attorneys";
 import { attorneysPage, attorneyProfile as copy } from "@/lib/content/pages";
+import { createPageMetadata } from "@/lib/metadata";
 import { publicFileExists } from "@/lib/public-file";
 import { absoluteUrl } from "@/lib/site-url";
 
@@ -23,7 +24,12 @@ export async function generateMetadata({
 }: PageProps<"/attorneys/[slug]">): Promise<Metadata> {
   const attorney = getAttorney((await params).slug);
   if (!attorney) return { title: attorneysPage.title };
-  return { title: attorney.name, description: attorney.bio };
+  return createPageMetadata({
+    title: attorney.name,
+    description: attorney.bio,
+    path: `/attorneys/${attorney.slug}`,
+    ownImage: true,
+  });
 }
 
 export default async function AttorneyProfilePage({

@@ -1,11 +1,12 @@
-import type { Metadata } from "next";
 import { PageHeader } from "@/components/site/page-header";
 import { careersPage as copy } from "@/lib/content/pages";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: copy.title,
   description: copy.intro,
-};
+  path: "/careers",
+});
 
 export default function CareersPage() {
   return (

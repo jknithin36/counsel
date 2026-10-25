@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { faqJsonLd } from "@/components/site/faq-accordion";
 import { AttorneysPreview } from "@/components/site/home/attorneys-preview";
 import { CaseResults } from "@/components/site/home/case-results";
@@ -16,11 +15,15 @@ import { JsonLd } from "@/components/site/json-ld";
 import { firm } from "@/lib/config/firm";
 import { homeFaqs } from "@/lib/content/faq";
 import { hero } from "@/lib/content/home";
+import { siteMeta } from "@/lib/content/pages";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: { absolute: "Calloway & Reyes | Attorneys at Law" },
+export const metadata = createPageMetadata({
+  title: siteMeta.title,
   description: hero.subtext,
-};
+  path: "/",
+  absoluteTitle: true,
+});
 
 const organizationJsonLd = {
   "@context": "https://schema.org",

@@ -1,80 +1,88 @@
 "use client";
 
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { documentsPage, portalShell } from "@/lib/content/portal";
 import { findDemoUser } from "@/lib/data/seed/users";
 import type { DocumentStatus } from "@/lib/data/types";
-import { formatDate, initials } from "@/lib/format";
+import { initials } from "@/lib/format";
+import { PageHeader } from "../dashboard/page-header";
+import { PageSkeleton } from "../dashboard/page-skeleton";
+import { StatusBadge, type Tone } from "../dashboard/status-badge";
 import { usePortalStatus } from "./provider";
 
-export const MATTER_ID = "M-2026-0142";
-export const CLIENT_ID = "cl-delgado";
-
+/** A portal page: the dashboard's header, with loading and error states. */
 export function PortalPage({
   title,
   description,
   actions,
+  back,
   children,
 }: {
-  title: string;
-  description?: string;
+  title: React.ReactNode;
+  description?: React.ReactNode;
   actions?: React.ReactNode;
+  /** A link back to the parent page, shown above the title. */
+  back?: { href: string; label: string };
   children: React.ReactNode;
 }) {
   const status = usePortalStatus();
-  if (status === "loading") return <PortalLoading />;
+  if (status === "loading") return <PageSkeleton label={portalShell.loading} />;
   if (status === "error")
-    return <p role="alert">The portal could not load. Please refresh.</p>;
+    return (
+      <p role="alert" className="text-sm text-muted-foreground">
+        {portalShell.loadError}
+      </p>
+    );
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-4xl sm:text-5xl">{title}</h1>
-          {description && (
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              {description}
-            </p>
-          )}
-        </div>
-        {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
-      </header>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
+        {back && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2 h-7 self-start px-2 text-muted-foreground"
+            nativeButton={false}
+            render={<Link href={back.href} />}
+          >
+            <HugeiconsIcon
+              icon={ArrowLeft01Icon}
+              strokeWidth={2}
+              data-icon="inline-start"
+            />
+            {back.label}
+          </Button>
+        )}
+        <PageHeader title={title} description={description} actions={actions} />
+      </div>
       {children}
     </div>
   );
 }
 
-export function PortalLoading() {
-  return (
-    <output className="block space-y-6" aria-label="Loading portal">
-      <Skeleton className="h-12 w-64" />
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[1, 2, 3].map((item) => (
-          <Skeleton key={item} className="h-36 rounded-xl" />
-        ))}
-      </div>
-      <Skeleton className="h-80 rounded-xl" />
-    </output>
-  );
-}
-
+/** A staff member's avatar, name and title. */
 export function Person({
   userId,
   subtitle,
+  size = "default",
 }: {
   userId: string;
   subtitle?: string;
+  size?: "default" | "sm";
 }) {
   const user = findDemoUser(userId);
-  const name = user?.name ?? "Your legal team";
+  const name = user?.name ?? "";
   return (
-    <div className="flex items-center gap-3">
-      <Avatar size="lg">
-        <AvatarFallback>{initials(name)}</AvatarFallback>
+    <div className="flex min-w-0 items-center gap-3">
+      <Avatar size={size === "sm" ? "sm" : "default"}>
+        <AvatarFallback className="text-xs">{initials(name)}</AvatarFallback>
       </Avatar>
       <div className="min-w-0">
-        <p className="font-medium">{name}</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="truncate text-sm font-medium">{name}</p>
+        <p className="truncate text-xs text-muted-foreground">
           {subtitle ?? user?.title}
         </p>
       </div>
@@ -82,22 +90,18 @@ export function Person({
   );
 }
 
-const statusLabel: Record<DocumentStatus, string> = {
-  requested: "Needed",
-  uploaded: "Uploaded",
-  reviewed: "Reviewed",
-  sent_for_signature: "Needs signature",
-  signed: "Signed",
+const documentTone: Record<DocumentStatus, Tone> = {
+  requested: "amber",
+  uploaded: "neutral",
+  reviewed: "neutral",
+  sent_for_signature: "amber",
+  signed: "green",
 };
+
 export function DocumentBadge({ status }: { status: DocumentStatus }) {
-  return <Badge variant="secondary">{statusLabel[status]}</Badge>;
-}
-export function DateText({
-  value,
-  time = false,
-}: {
-  value: string;
-  time?: boolean;
-}) {
-  return <time dateTime={value}>{formatDate(value, time)}</time>;
+  return (
+    <StatusBadge tone={documentTone[status]}>
+      {documentsPage.statuses[status]}
+    </StatusBadge>
+  );
 }

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Manrope, Newsreader } from "next/font/google";
 import "./globals.css";
+import { firm } from "@/lib/config/firm";
+import { siteMeta } from "@/lib/content/pages";
 import { siteUrl } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
 
@@ -13,25 +15,46 @@ const manrope = Manrope({
 const newsreader = Newsreader({
   variable: "--font-newsreader",
   subsets: ["latin"],
-  weight: ["400", "500"],
-  style: ["normal", "italic"],
+  weight: "400",
 });
 
+// Italic is only used below the fold (quotes, signatures), so it isn't
+// preloaded. globals.css maps `italic` on serif text to this face.
+const newsreaderItalic = Newsreader({
+  variable: "--font-newsreader-italic",
+  subsets: ["latin"],
+  weight: "400",
+  style: "italic",
+  preload: false,
+});
+
+// Only used for numbers in dashboard chart tooltips.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: false,
 });
 
 export const metadata: Metadata = {
-  // Set NEXT_PUBLIC_SITE_URL to the production domain so social images
-  // resolve to absolute URLs.
+  // Absolute URLs for canonicals and social cards; see lib/site-url.ts.
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Calloway & Reyes",
-    template: "%s | Calloway & Reyes",
+    default: siteMeta.title,
+    template: `%s | ${firm.name}`,
   },
-  description: "Calloway & Reyes",
-  applicationName: "Calloway & Reyes",
+  description: siteMeta.description,
+  applicationName: firm.name,
+  openGraph: {
+    type: "website",
+    siteName: firm.name,
+    title: siteMeta.title,
+    description: siteMeta.description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteMeta.title,
+    description: siteMeta.description,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -43,6 +66,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         "h-full antialiased",
         manrope.variable,
         newsreader.variable,
+        newsreaderItalic.variable,
         geistMono.variable,
       )}
     >

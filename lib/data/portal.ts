@@ -2,8 +2,10 @@
 
 import { documentHistory } from "./documents";
 import { uid } from "./leads";
+import { demoClientUser, findDemoUser } from "./seed/users";
 import { useDemoStore } from "./store";
 import type {
+  Client,
   DocumentCategory,
   MedicalProvider,
   MeetingType,
@@ -11,10 +13,21 @@ import type {
   PortalFormData,
 } from "./types";
 
-const MARIA_ID = "u-maria";
-const MARIA_NAME = "Maria Delgado";
-const MATTER_ID = "M-2026-0142";
 const now = () => new Date().toISOString();
+
+/** The signed-in client: their login, matter and client record. */
+export function portalIdentity() {
+  const state = useDemoStore.getState();
+  const user = findDemoUser(state.session?.userId ?? "") ?? demoClientUser;
+  const matter = state.matters.find((m) => m.id === user.matterId);
+  return {
+    userId: user.id,
+    name: user.name,
+    matterId: user.matterId ?? "",
+    clientId: matter?.clientId ?? "",
+    matter,
+  };
+}
 
 const fileType = (name: string) => {
   const ext = name.split(".").at(-1)?.toLowerCase();
@@ -31,6 +44,7 @@ export function uploadPortalDocument(input: {
   category?: DocumentCategory;
   comment?: string;
 }) {
+  const me = portalIdentity();
   const at = now();
   const cleanName = input.file.name.replace(/\.[^.]+$/, "");
   useDemoStore.getState().mutate((data) => ({
@@ -42,13 +56,13 @@ export function uploadPortalDocument(input: {
                 name: doc.name,
                 type: fileType(input.file.name),
                 size: input.file.size,
-                uploadedBy: "cl-delgado",
+                uploadedBy: me.clientId,
                 uploadedAt: at,
                 status: "uploaded",
                 comment: input.comment?.trim() || undefined,
                 history: [
                   ...documentHistory(doc),
-                  { status: "uploaded", at, by: MARIA_ID },
+                  { status: "uploaded", at, by: me.userId },
                 ],
               }
             : doc,
@@ -56,16 +70,16 @@ export function uploadPortalDocument(input: {
       : [
           {
             id: `DOC-${uid().slice(0, 8)}`,
-            matterId: MATTER_ID,
+            matterId: me.matterId,
             name: cleanName,
             type: fileType(input.file.name),
             size: input.file.size,
             category: input.category,
-            uploadedBy: "cl-delgado",
+            uploadedBy: me.clientId,
             uploadedAt: at,
             status: "uploaded",
             comment: input.comment?.trim() || undefined,
-            history: [{ status: "uploaded", at, by: MARIA_ID }],
+            history: [{ status: "uploaded", at, by: me.userId }],
           },
           ...data.documents,
         ],
@@ -74,9 +88,9 @@ export function uploadPortalDocument(input: {
         id: uid(),
         createdAt: at,
         type: "document_uploaded",
-        actorId: MARIA_ID,
-        message: `${MARIA_NAME} uploaded ${input.requestId ? (data.documents.find((doc) => doc.id === input.requestId)?.name ?? cleanName) : cleanName}`,
-        href: `/dashboard/matters/${MATTER_ID}?tab=documents`,
+        actorId: me.userId,
+        message: `${me.name} uploaded ${input.requestId ? (data.documents.find((doc) => doc.id === input.requestId)?.name ?? cleanName) : cleanName}`,
+        href: `/dashboard/matters/${me.matterId}?tab=documents`,
       },
       ...data.activityLog,
     ],
@@ -84,6 +98,7 @@ export function uploadPortalDocument(input: {
 }
 
 export function signPortalDocument(docId: string, signer: string) {
+  const me = portalIdentity();
   const doc = useDemoStore
     .getState()
     .documents.find((item) => item.id === docId);
@@ -99,7 +114,7 @@ export function signPortalDocument(docId: string, signer: string) {
             signer,
             history: [
               ...documentHistory(item),
-              { status: "signed", at, by: MARIA_ID },
+              { status: "signed", at, by: me.userId },
             ],
           }
         : item,
@@ -109,9 +124,9 @@ export function signPortalDocument(docId: string, signer: string) {
         id: uid(),
         createdAt: at,
         type: "document_signed",
-        actorId: MARIA_ID,
-        message: `${MARIA_NAME} signed ${doc.name}`,
-        href: `/dashboard/matters/${MATTER_ID}?tab=documents`,
+        actorId: me.userId,
+        message: `${me.name} signed ${doc.name}`,
+        href: `/dashboard/matters/${me.matterId}?tab=documents`,
       },
       ...data.activityLog,
     ],
@@ -120,9 +135,10 @@ export function signPortalDocument(docId: string, signer: string) {
 }
 
 function appendMessage(message: Message, activityMessage: string) {
+  const me = portalIdentity();
   useDemoStore.getState().mutate((data) => ({
     threads: data.threads.map((thread) =>
-      thread.matterId === MATTER_ID
+      thread.matterId === me.matterId
         ? { ...thread, messages: [...thread.messages, message] }
         : thread,
     ),
@@ -131,7 +147,7 @@ function appendMessage(message: Message, activityMessage: string) {
         id: uid(),
         createdAt: message.sentAt,
         type: "message_received",
-        actorId: MARIA_ID,
+        actorId: me.userId,
         message: activityMessage,
         href: "/dashboard/messages",
       },
@@ -144,18 +160,26 @@ export function sendPortalMessage(
   body: string,
   attachments: { name: string; size: number }[] = [],
 ) {
+  const me = portalIdentity();
   const message: Message = {
     id: uid(),
-    authorId: MARIA_ID,
+    authorId: me.userId,
     body: body.trim(),
     sentAt: now(),
     read: false,
     attachments: attachments.length ? attachments : undefined,
   };
-  appendMessage(message, `New message from ${MARIA_NAME}`);
+  appendMessage(message, `New message from ${me.name}`);
 }
 
-export function simulateStaffReply(onReply: () => void) {
+/** Demo only: a teammate answers the client's first message of the session. */
+export function simulateStaffReply(onReply: (name: string) => void) {
+  const me = portalIdentity();
+  const team = me.matter?.team ?? [];
+  const leadId = me.matter?.leadAttorneyId ?? "";
+  const replier =
+    findDemoUser(team.find((id) => id !== leadId) ?? leadId) ?? demoClientUser;
+  const lead = findDemoUser(leadId)?.name ?? "your attorney";
   try {
     if (sessionStorage.getItem("counsel-portal-reply")) return false;
     sessionStorage.setItem("counsel-portal-reply", "1");
@@ -163,31 +187,32 @@ export function simulateStaffReply(onReply: () => void) {
   setTimeout(() => {
     const reply: Message = {
       id: uid(),
-      authorId: "u-rosa",
-      body: "Thanks, Maria. I've let Daniel know. We'll follow up shortly.",
+      authorId: replier.id,
+      body: `Thanks, ${me.name.split(" ")[0]}. I've passed this to ${lead.split(" ")[0]} and we'll follow up shortly.`,
       sentAt: now(),
       read: false,
     };
     useDemoStore.getState().mutate((data) => ({
       threads: data.threads.map((thread) =>
-        thread.matterId === MATTER_ID
+        thread.matterId === me.matterId
           ? { ...thread, messages: [...thread.messages, reply] }
           : thread,
       ),
     }));
-    onReply();
+    onReply(replier.name);
   }, 4000);
   return true;
 }
 
 export function markPortalMessagesRead() {
+  const me = portalIdentity();
   useDemoStore.getState().mutate((data) => ({
     threads: data.threads.map((thread) =>
-      thread.matterId === MATTER_ID
+      thread.matterId === me.matterId
         ? {
             ...thread,
             messages: thread.messages.map((message) =>
-              message.authorId !== MARIA_ID && !message.internal
+              message.authorId !== me.userId && !message.internal
                 ? { ...message, read: true }
                 : message,
             ),
@@ -206,8 +231,13 @@ export function requestAppointment(input: {
   const lead = input.rescheduleId
     ? "I'd like to reschedule my appointment."
     : "I'd like to request an appointment.";
+  const format = {
+    video: "video call",
+    phone: "phone call",
+    in_person: "in person",
+  }[input.type];
   sendPortalMessage(
-    `${lead} Topic: ${input.topic}. Preferred format: ${input.type.replace("_", " ")}. Good times: ${input.preferredTimes.join(", ")}.`,
+    `${lead}\n\nTopic: ${input.topic}\nFormat: ${format}\nGood times: ${input.preferredTimes.join(", ")}`,
   );
 }
 
@@ -216,6 +246,7 @@ export function savePortalForm(
   data: PortalFormData,
   submit = false,
 ) {
+  const me = portalIdentity();
   const at = now();
   useDemoStore.getState().mutate((state) => {
     const form = state.portalForms.find((item) => item.id === formId);
@@ -243,11 +274,11 @@ export function savePortalForm(
                 matterId: form.matterId,
                 name: `Form: ${form.name} (submitted)`,
                 type: "pdf" as const,
-                uploadedBy: "cl-delgado",
+                uploadedBy: me.clientId,
                 uploadedAt: at,
                 status: "uploaded" as const,
                 category: "other" as const,
-                history: [{ status: "uploaded" as const, at, by: MARIA_ID }],
+                history: [{ status: "uploaded" as const, at, by: me.userId }],
               },
               ...state.documents,
             ],
@@ -256,9 +287,9 @@ export function savePortalForm(
                 id: uid(),
                 createdAt: at,
                 type: "document_uploaded" as const,
-                actorId: MARIA_ID,
-                message: `${MARIA_NAME} submitted ${form.name}`,
-                href: `/dashboard/matters/${MATTER_ID}?tab=documents`,
+                actorId: me.userId,
+                message: `${me.name} submitted ${form.name}`,
+                href: `/dashboard/matters/${me.matterId}?tab=documents`,
               },
               ...state.activityLog,
             ],
@@ -277,4 +308,29 @@ export function emptyProvider(): MedicalProvider {
     firstVisit: "",
     stillTreating: true,
   };
+}
+
+/** The client updates their own contact details or preferences. */
+export function updatePortalProfile(patch: Partial<Client>) {
+  const me = portalIdentity();
+  useDemoStore.getState().mutate((data) => {
+    const client = data.clients.find((c) => c.id === me.clientId);
+    if (!client) return {};
+    return {
+      clients: data.clients.map((c) =>
+        c.id === me.clientId ? { ...c, ...patch } : c,
+      ),
+      activityLog: [
+        {
+          id: uid(),
+          createdAt: now(),
+          type: "client_updated" as const,
+          actorId: me.userId,
+          message: `${client.name} updated their portal profile`,
+          href: `/dashboard/clients/${client.id}`,
+        },
+        ...data.activityLog,
+      ],
+    };
+  });
 }

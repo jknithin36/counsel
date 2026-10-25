@@ -66,9 +66,13 @@ function StageProgress({ matter }: { matter: Matter }) {
   const stages = matterStages[matter.practiceArea];
   const current = stages.findIndex((s) => s.key === matter.stage);
   return (
-    <nav
+    // A list of stages, not links, so a labelled region. It scrolls sideways
+    // on small screens; tabIndex lets keyboard users scroll it too.
+    <section
       aria-label={copy.progress}
-      className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0"
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: scrollable region must be focusable
+      tabIndex={0}
+      className="-mx-4 overflow-x-auto rounded-md px-4 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:mx-0 md:px-0"
     >
       <ol className="flex min-w-[560px]">
         {stages.map((stage, i) => {
@@ -117,7 +121,7 @@ function StageProgress({ matter }: { matter: Matter }) {
           );
         })}
       </ol>
-    </nav>
+    </section>
   );
 }
 

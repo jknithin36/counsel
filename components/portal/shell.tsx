@@ -1,254 +1,369 @@
 "use client";
 
+import {
+  LinkSquare02Icon,
+  Logout01Icon,
+  RefreshIcon,
+  UnfoldMoreIcon,
+  UserIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Fragment, useState } from "react";
+import { DemoModeBanner } from "@/components/demo-mode-banner";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Toaster } from "@/components/ui/toast";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { Toaster, toast } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { signOut } from "@/lib/auth/session";
 import { firm } from "@/lib/config/firm";
-import { invoiceBalance } from "@/lib/data/selectors";
+import {
+  type PortalNavItem,
+  portalAccountNav,
+  portalNav,
+  portalNavItemFor,
+} from "@/lib/config/portal-nav";
+import { demoExperience } from "@/lib/content/demo";
+import { portalShell as copy } from "@/lib/content/portal";
+import { resetDemoData } from "@/lib/data/demo-data";
 import { useDemoStore } from "@/lib/data/store";
-import { PortalProvider } from "./provider";
-import { CLIENT_ID, MATTER_ID } from "./shared";
+import { initials } from "@/lib/format";
+import { PortalProvider, usePortalStatus } from "./provider";
+import { usePortal, usePortalTasks } from "./use-portal";
 
-const nav = [
-  ["Overview", "/portal"],
-  ["My Case", "/portal/case"],
-  ["Documents", "/portal/documents"],
-  ["Messages", "/portal/messages"],
-  ["Appointments", "/portal/appointments"],
-  ["Billing", "/portal/billing"],
-  ["Forms", "/portal/forms"],
-] as const;
-
-function useCounts() {
-  const documents = useDemoStore((s) => s.documents);
-  const threads = useDemoStore((s) => s.threads);
-  const invoices = useDemoStore((s) => s.invoices);
-  const payments = useDemoStore((s) => s.payments);
-  return {
-    Documents: documents.filter(
-      (doc) =>
-        doc.matterId === MATTER_ID &&
-        ["requested", "sent_for_signature"].includes(doc.status),
-    ).length,
-    Messages:
-      threads
-        .find((thread) => thread.matterId === MATTER_ID)
-        ?.messages.filter(
-          (message) =>
-            message.authorId !== "u-maria" &&
-            !message.internal &&
-            !message.read,
-        ).length ?? 0,
-    Billing: invoices
-      .filter((invoice) => invoice.clientId === CLIENT_ID)
-      .reduce((sum, invoice) => sum + invoiceBalance(invoice, payments), 0),
-  };
-}
-
-function NavLink({
-  label,
-  href,
-  mobile = false,
-}: {
-  label: string;
-  href: string;
-  mobile?: boolean;
-}) {
+function NavGroup({ label, items }: { label: string; items: PortalNavItem[] }) {
   const pathname = usePathname();
-  const counts = useCounts();
-  const active =
-    href === "/portal" ? pathname === href : pathname.startsWith(href);
-  const count = label in counts ? counts[label as keyof typeof counts] : 0;
+  const active = portalNavItemFor(pathname);
+  const { isMobile, setOpenMobile } = useSidebar();
+  const ready = usePortalStatus() === "ready";
+  const { counts } = usePortalTasks();
   return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={
-        mobile
-          ? `flex min-h-11 flex-1 flex-col items-center justify-center rounded-md px-2 text-[11px] ${active ? "bg-muted font-medium" : "text-muted-foreground"}`
-          : `flex min-h-11 items-center justify-between rounded-md px-3 text-sm transition-colors ${active ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/5 hover:text-white"}`
-      }
-    >
-      <span>{mobile && label === "My Case" ? "Case" : label}</span>
-      {count > 0 && (
-        <Badge
-          className={mobile ? "h-4 px-1 text-[9px]" : "bg-white text-black"}
-        >
-          {label === "Billing" ? "$" : count}
-        </Badge>
-      )}
-    </Link>
+    <SidebarGroup>
+      <SidebarGroupLabel className="mb-1 text-[12px] font-normal text-white/55">
+        {label}
+      </SidebarGroupLabel>
+      <SidebarMenu className="gap-0.5">
+        {items.map((item) => {
+          const isActive = active?.href === item.href;
+          const count = item.badge && ready ? counts[item.badge] : 0;
+          return (
+            <SidebarMenuItem key={item.href}>
+              <SidebarMenuButton
+                isActive={isActive}
+                tooltip={item.title}
+                className="h-9 gap-3 px-2.5 text-[14px] text-white/80 data-active:font-normal [&_svg]:text-white/55 data-active:[&_svg]:text-white hover:[&_svg]:text-white"
+                render={
+                  <Link
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    onClick={() => isMobile && setOpenMobile(false)}
+                  />
+                }
+              >
+                <HugeiconsIcon icon={item.icon} strokeWidth={1.5} />
+                <span>{item.title}</span>
+              </SidebarMenuButton>
+              {count > 0 && (
+                <SidebarMenuBadge className="top-2! text-white/55">
+                  {count}
+                </SidebarMenuBadge>
+              )}
+            </SidebarMenuItem>
+          );
+        })}
+      </SidebarMenu>
+    </SidebarGroup>
   );
 }
 
-function MoreMenu() {
-  const [open, setOpen] = useState(false);
+function PortalUserMenu() {
   const router = useRouter();
-  const go = (href: string) => {
-    setOpen(false);
-    router.push(href);
-  };
+  const { isMobile } = useSidebar();
+  const { user } = usePortal();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  if (!user) return null;
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger
-        render={
-          <button
-            type="button"
-            className="min-h-11 flex-1 rounded-md text-[11px] text-muted-foreground"
-          />
-        }
-      >
-        More
-      </SheetTrigger>
-      <SheetContent
-        side="bottom"
-        className="rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))]"
-      >
-        <SheetHeader>
-          <SheetTitle>More</SheetTitle>
-          <SheetDescription>
-            Appointments, billing, forms, and account settings.
-          </SheetDescription>
-        </SheetHeader>
-        <nav className="grid gap-1 px-4">
-          {nav.slice(4).map(([label, href]) => (
-            <Button
-              key={href}
-              variant="ghost"
-              className="justify-start"
-              onClick={() => go(href)}
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <SidebarMenuButton
+                size="lg"
+                className="data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground"
+              />
+            }
+          >
+            <Avatar className="size-8 rounded-[5px] after:rounded-[5px]">
+              <AvatarFallback className="rounded-[5px] bg-white text-xs font-medium text-black">
+                {initials(user.name)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="grid flex-1 text-left leading-tight">
+              <span className="truncate text-[14px] text-white/90">
+                {user.name}
+              </span>
+              <span className="truncate text-xs text-white/50">
+                {user.email}
+              </span>
+            </span>
+            <HugeiconsIcon
+              icon={UnfoldMoreIcon}
+              className="ml-auto text-white/50"
+            />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side={isMobile ? "top" : "right"}
+            align="end"
+            className="w-56"
+          >
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>
+                <span className="block text-sm font-medium text-foreground">
+                  {user.name}
+                </span>
+                <span className="block font-normal">{user.email}</span>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem render={<Link href="/portal/profile" />}>
+                <HugeiconsIcon icon={UserIcon} />
+                {copy.profile}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                render={
+                  // biome-ignore lint/a11y/useAnchorContent: content is passed as children by Base UI
+                  <a href="/" target="_blank" rel="noopener noreferrer" />
+                }
+              >
+                <HugeiconsIcon icon={LinkSquare02Icon} />
+                {copy.publicSite}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setConfirmOpen(true)}>
+                <HugeiconsIcon icon={RefreshIcon} />
+                {demoExperience.reset}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                signOut();
+                router.replace("/login");
+              }}
             >
-              {label}
-            </Button>
-          ))}
-          <Button
-            variant="ghost"
-            className="justify-start"
-            onClick={() => go("/portal/profile")}
-          >
-            Profile
-          </Button>
-          <Button
-            variant="ghost"
-            className="justify-start"
-            onClick={() => go("/portal-help")}
-          >
-            Help
-          </Button>
-          <Button
-            variant="ghost"
-            className="justify-start text-destructive"
-            onClick={() => {
-              signOut();
-              router.replace("/login");
-            }}
-          >
-            Sign out
-          </Button>
-        </nav>
-      </SheetContent>
-    </Sheet>
+              <HugeiconsIcon icon={Logout01Icon} />
+              {copy.signOut}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {demoExperience.resetDialog.title}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {demoExperience.resetDialog.description}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel size="sm">
+                {demoExperience.resetDialog.cancel}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                size="sm"
+                onClick={() => {
+                  resetDemoData();
+                  setConfirmOpen(false);
+                  toast.add({ title: demoExperience.resetDone });
+                }}
+              >
+                {demoExperience.resetDialog.confirm}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
+function PortalSidebar() {
+  const { isMobile, setOpenMobile } = useSidebar();
+  const { matter } = usePortal();
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="px-4 pt-6 pb-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
+        <Link
+          href="/portal"
+          aria-label={`${copy.brand}, ${firm.name}`}
+          className="flex items-center gap-2 rounded-md font-serif text-[26px] leading-none text-white outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+          onClick={() => isMobile && setOpenMobile(false)}
+        >
+          {/* The logo file is black; invert it for the dark sidebar. */}
+          <Image
+            src="/logo.svg"
+            alt=""
+            width={1120}
+            height={1248}
+            unoptimized
+            priority
+            className="h-8 w-auto shrink-0 invert"
+          />
+          <span className="group-data-[collapsible=icon]:hidden">
+            {copy.brand}
+          </span>
+        </Link>
+        {matter && (
+          <div className="mt-5 border-t border-white/10 pt-4 group-data-[collapsible=icon]:hidden">
+            <p className="text-[12px] text-white/55">{copy.matterLabel}</p>
+            <p className="mt-1 truncate text-[14px] text-white/90">
+              {matter.title}
+            </p>
+            <p className="text-xs text-white/50 tabular-nums">{matter.id}</p>
+          </div>
+        )}
+      </SidebarHeader>
+      <SidebarContent className="gap-3">
+        <NavGroup label={copy.navLabel} items={portalNav} />
+        <NavGroup label={copy.accountLabel} items={portalAccountNav} />
+      </SidebarContent>
+      <SidebarFooter className="px-4 pb-5 group-data-[collapsible=icon]:px-2">
+        <PortalUserMenu />
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
+  );
+}
+
+/** Portal › Section › Detail (document or form name). */
+function useCrumbs() {
+  const pathname = usePathname();
+  const item = portalNavItemFor(pathname);
+  const id = decodeURIComponent(pathname.split("/").at(-1) ?? "");
+  const detail = useDemoStore((s) => {
+    if (pathname.startsWith("/portal/sign/"))
+      return s.documents.find((d) => d.id === id)?.name;
+    if (pathname.startsWith("/portal/forms/"))
+      return s.portalForms.find((f) => f.id === id)?.name;
+    return undefined;
+  });
+  const crumbs = [{ label: copy.breadcrumbRoot, href: "/portal" }];
+  if (item && item.href !== "/portal")
+    crumbs.push({ label: item.title, href: item.href });
+  if (item && pathname !== item.href && item.href !== "/portal")
+    crumbs.push({ label: detail ?? id, href: pathname });
+  if (item?.href === "/portal")
+    crumbs[0] = { label: item.title, href: "/portal" };
+  return crumbs;
+}
+
+function Topbar() {
+  const crumbs = useCrumbs();
+  return (
+    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4 md:px-6">
+      <SidebarTrigger className="-ml-1" />
+      <Breadcrumb className="min-w-0 flex-1">
+        <BreadcrumbList className="flex-nowrap">
+          {crumbs.map((crumb, i) => {
+            const last = i === crumbs.length - 1;
+            return (
+              <Fragment key={crumb.href}>
+                {i > 0 && <BreadcrumbSeparator className="hidden sm:flex" />}
+                <BreadcrumbItem
+                  className={last ? "min-w-0" : "hidden sm:inline-flex"}
+                >
+                  {last ? (
+                    <BreadcrumbPage className="truncate">
+                      {crumb.label}
+                    </BreadcrumbPage>
+                  ) : (
+                    <BreadcrumbLink render={<Link href={crumb.href} />}>
+                      {crumb.label}
+                    </BreadcrumbLink>
+                  )}
+                </BreadcrumbItem>
+              </Fragment>
+            );
+          })}
+        </BreadcrumbList>
+      </Breadcrumb>
+    </header>
   );
 }
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   return (
     <PortalProvider>
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-button focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-medium focus:shadow-lg"
+      >
+        {copy.skipToContent}
+      </a>
       <TooltipProvider>
         <Toaster>
-          <div className="min-h-dvh bg-[#fafafa] text-sm">
-            <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col bg-[#111] p-5 text-white lg:flex">
-              <Link href="/portal" className="font-serif text-3xl">
-                Counsel
-              </Link>
-              <p className="mt-1 text-xs text-white/50">{firm.name}</p>
-              <div className="mt-8 rounded-lg border border-white/10 p-3">
-                <p className="text-[11px] uppercase tracking-wider text-white/45">
-                  Your matter
-                </p>
-                <p className="mt-1 text-sm text-white">
-                  Delgado v. Ridgeline Freight
-                </p>
-                <p className="text-xs text-white/45">M-2026-0142</p>
-              </div>
-              <nav className="mt-6 grid gap-1">
-                {nav.map(([label, href]) => (
-                  <NavLink key={href} label={label} href={href} />
-                ))}
-              </nav>
-              <div className="mt-auto border-t border-white/10 pt-4">
-                <Link
-                  href="/portal/profile"
-                  className="flex min-h-12 items-center gap-3 rounded-md px-2 hover:bg-white/5"
-                >
-                  <Avatar>
-                    <AvatarFallback>MD</AvatarFallback>
-                  </Avatar>
-                  <span>
-                    <span className="block text-sm">Maria D.</span>
-                    <span className="block text-xs text-white/45">Client</span>
-                  </span>
-                </Link>
-                <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
-                  <Link
-                    className="rounded px-2 py-2 text-white/60 hover:text-white"
-                    href="/portal-help"
-                  >
-                    Help
-                  </Link>
-                  <button
-                    type="button"
-                    className="rounded px-2 py-2 text-left text-white/60 hover:text-white"
-                    onClick={() => {
-                      signOut();
-                      router.replace("/login");
-                    }}
-                  >
-                    Sign out
-                  </button>
-                </div>
-              </div>
-            </aside>
-            <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-white/95 px-4 backdrop-blur lg:hidden">
-              <Link href="/portal" className="font-serif text-2xl">
-                Counsel
-              </Link>
-              <Link href="/portal/profile" aria-label="Open profile">
-                <Avatar>
-                  <AvatarFallback>MD</AvatarFallback>
-                </Avatar>
-              </Link>
-            </header>
-            <main className="pb-24 lg:ml-64 lg:pb-8">
-              <div className="mx-auto w-full max-w-[1100px] p-4 sm:p-6 lg:p-8">
+          <SidebarProvider className="text-sm leading-normal">
+            <PortalSidebar />
+            <SidebarInset
+              id="main"
+              role="main"
+              tabIndex={-1}
+              className="min-w-0 outline-none"
+            >
+              <Topbar />
+              <DemoModeBanner />
+              <div className="mx-auto w-full max-w-[1200px] flex-1 p-4 md:p-8">
                 {children}
               </div>
-            </main>
-            <nav
-              aria-label="Portal navigation"
-              className="fixed inset-x-0 bottom-0 z-40 flex border-t bg-white px-2 pb-[env(safe-area-inset-bottom)] lg:hidden"
-            >
-              {nav.slice(0, 4).map(([label, href]) => (
-                <NavLink key={href} label={label} href={href} mobile />
-              ))}
-              <MoreMenu />
-            </nav>
-          </div>
+            </SidebarInset>
+          </SidebarProvider>
         </Toaster>
       </TooltipProvider>
     </PortalProvider>

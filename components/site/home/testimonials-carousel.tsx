@@ -105,7 +105,7 @@ export function TestimonialsCarousel({
             ))}
           </div>
 
-          <p className="mt-6 text-[12px] text-[#8a8a8a]">{disclaimer}</p>
+          <p className="mt-6 text-[12px] text-muted-foreground">{disclaimer}</p>
         </div>
       </div>
     </section>

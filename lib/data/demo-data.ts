@@ -10,12 +10,14 @@ import { SEED_VERSION, useDemoStore } from "./store";
  */
 
 export function ensureDemoData(now = new Date()) {
-  const { seededAt, seed, rebase } = useDemoStore.getState();
-  if (!seededAt) seed(buildSeed(now));
-  else {
-    rebase(now);
-    upgradeDemoData(now);
+  const { seededAt, seed, rebase, setSeedVersion } = useDemoStore.getState();
+  if (!seededAt) {
+    seed(buildSeed(now));
+    setSeedVersion(SEED_VERSION);
+    return "seeded" as const;
   }
+  rebase(now);
+  return upgradeDemoData(now) ? ("updated" as const) : ("ready" as const);
 }
 
 /**
@@ -24,7 +26,7 @@ export function ensureDemoData(now = new Date()) {
  */
 function upgradeDemoData(now: Date) {
   const { seedVersion, mutate, setSeedVersion } = useDemoStore.getState();
-  if (seedVersion >= SEED_VERSION) return;
+  if (seedVersion >= SEED_VERSION) return false;
   const fresh = buildSeed(now);
   // Invoices had no year in their number before payments existed; nothing
   // could change them then, so swap in the new billing data wholesale.
@@ -86,8 +88,11 @@ function upgradeDemoData(now: Date) {
     }),
   }));
   setSeedVersion(SEED_VERSION);
+  return true;
 }
 
 export function resetDemoData() {
-  useDemoStore.getState().resetData(buildSeed());
+  const store = useDemoStore.getState();
+  store.resetData(buildSeed());
+  store.setSeedVersion(SEED_VERSION);
 }

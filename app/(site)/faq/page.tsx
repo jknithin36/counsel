@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { CtaBand } from "@/components/site/cta-band";
 import { FaqGroups } from "@/components/site/faq/live-faqs";
@@ -8,11 +7,13 @@ import { PageHeader } from "@/components/site/page-header";
 import { SectionHeading } from "@/components/site/section-heading";
 import { faqs } from "@/lib/content/faq";
 import { faqPage as copy } from "@/lib/content/pages";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: copy.metaTitle,
   description: copy.intro,
-};
+  path: "/faq",
+});
 
 export default function FaqPage() {
   return (

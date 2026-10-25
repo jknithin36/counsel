@@ -5,11 +5,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { demoMode } from "@/lib/config/env";
 import { consultation as c } from "@/lib/content/consultation";
 import { useDemoStore } from "@/lib/data/store";
 import { useSettings } from "@/lib/site-content";
-
-const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 export function ThankYou() {
   const { thankYouMessage } = useSettings("intake");

@@ -10,7 +10,9 @@ import { toast } from "@/components/ui/toast";
 import { type StaffRole, staffRoleLabels } from "@/lib/auth/roles";
 import { switchDemoRole, useSession } from "@/lib/auth/session";
 import { dashboardNavItems } from "@/lib/config/dashboard-nav";
+import { demoMode } from "@/lib/config/env";
 import { profilePage as copy, editorCopy } from "@/lib/content/dashboard-admin";
+import { saveProfile } from "@/lib/data/admin";
 import { useDemoStore } from "@/lib/data/store";
 import type { Profile } from "@/lib/data/types";
 import { formatPhone } from "@/lib/format";
@@ -22,7 +24,6 @@ import { PageSkeleton } from "../page-skeleton";
 import { useProfile } from "../preferences";
 import { SectionCard } from "../section-card";
 
-const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 const roleOptions = (Object.keys(staffRoleLabels) as StaffRole[]).map(
   (value) => ({ value, label: staffRoleLabels[value] }),
 );
@@ -64,7 +65,7 @@ function useProfileDraft<K extends keyof Profile>(keys: K[]) {
     discard: () => setDraft(live),
     save: () => {
       if (!profile.userId) return;
-      useDemoStore.getState().setProfile(profile.userId, draft);
+      saveProfile(profile.userId, draft);
       toast.add({ title: editorCopy.saved(copy.savedName) });
     },
   };

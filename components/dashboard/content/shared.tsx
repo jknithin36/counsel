@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/sheet";
 import { toast } from "@/components/ui/toast";
 import { editorCopy } from "@/lib/content/dashboard-admin";
-import { currentUser } from "@/lib/data/leads";
+import { saveContent } from "@/lib/data/admin";
 import { useDemoStore } from "@/lib/data/store";
 import type { ContentOverrides, ContentSection } from "@/lib/data/types";
 
@@ -39,7 +39,7 @@ export function publish(
   patch: Partial<ContentOverrides>,
   name: string,
 ) {
-  useDemoStore.getState().setContent(section, patch, currentUser().name);
+  saveContent(section, patch);
   toast.add({ title: editorCopy.saved(name) });
 }
 

@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CtaBand } from "@/components/site/cta-band";
 import { GuideCard } from "@/components/site/guides/guide-card";
@@ -7,11 +6,13 @@ import { type GuideItem, GuideList } from "@/components/site/guides/guide-list";
 import { PageHeader } from "@/components/site/page-header";
 import { guides } from "@/lib/content/guides";
 import { resourcesPage as copy } from "@/lib/content/pages";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: copy.metaTitle,
   description: copy.intro,
-};
+  path: "/resources",
+});
 
 export default function ResourcesPage() {
   const items: GuideItem[] = [...guides]

@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { AttorneyCard } from "@/components/site/attorney-card";
 import { CtaBand } from "@/components/site/cta-band";
 import { TrustStrip } from "@/components/site/home/trust-strip";
@@ -7,11 +6,13 @@ import { SectionHeading } from "@/components/site/section-heading";
 import { TexturePanel } from "@/components/ui/texture-panel";
 import { about } from "@/lib/content/about";
 import { attorneys } from "@/lib/content/attorneys";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: about.metaTitle,
   description: about.intro,
-};
+  path: "/about",
+});
 
 const founders = attorneys.filter((a) => a.title === "Founding Partner");
 

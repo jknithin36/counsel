@@ -2,8 +2,10 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
-import { signOut } from "@/lib/auth/session";
-import { ensureDemoData } from "@/lib/data/demo-data";
+import { toast } from "@/components/ui/toast";
+import { isDemoDataCorrupted, signOut } from "@/lib/auth/session";
+import { demoExperience } from "@/lib/content/demo";
+import { ensureDemoData, resetDemoData } from "@/lib/data/demo-data";
 import { STORE_KEY, useDemoStore } from "@/lib/data/store";
 
 type Status = "loading" | "ready" | "error";
@@ -23,7 +25,12 @@ export function PortalProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      ensureDemoData();
+      if (isDemoDataCorrupted()) {
+        resetDemoData();
+        toast.add({ title: demoExperience.dataRecovered, type: "warning" });
+      } else if (ensureDemoData() === "updated") {
+        toast.add({ title: demoExperience.dataUpdated, type: "info" });
+      }
       setStatus("ready");
     } catch {
       setStatus("error");

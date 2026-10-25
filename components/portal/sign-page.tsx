@@ -1,217 +1,231 @@
 "use client";
 
+import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { signPage as copy } from "@/lib/content/portal";
 import { signPortalDocument } from "@/lib/data/portal";
 import { useDemoStore } from "@/lib/data/store";
 import { formatDate } from "@/lib/format";
+import { useFirm } from "@/lib/site-content";
+import { CardEmpty } from "../dashboard/section-card";
+import { PortalPage } from "./shared";
+import { usePortal } from "./use-portal";
 
-export function SignPage({ docId }: { docId: string }) {
-  const doc = useDemoStore((s) =>
-    s.documents.find((item) => item.id === docId),
-  );
-  const [name, setName] = useState("Maria Delgado");
-  const [consent, setConsent] = useState(false);
-  const [signed, setSigned] = useState(doc?.status === "signed");
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+const back = { href: "/portal/documents", label: copy.back };
+
+/** A simple pointer-driven signature pad. */
+function SignaturePad({ onChange }: { onChange: (drawn: boolean) => void }) {
+  const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const context = canvas.getContext("2d");
-    if (!context) return;
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    // Match the bitmap to the displayed size so strokes aren't blurred.
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = canvas.offsetWidth * ratio;
+    canvas.height = canvas.offsetHeight * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
     let drawing = false;
-    const point = (event: PointerEvent) => ({
-      x: event.offsetX,
-      y: event.offsetY,
-    });
-    const down = (event: PointerEvent) => {
+    const down = (e: PointerEvent) => {
       drawing = true;
-      const p = point(event);
-      context.beginPath();
-      context.moveTo(p.x, p.y);
+      ctx.beginPath();
+      ctx.moveTo(e.offsetX, e.offsetY);
     };
-    const move = (event: PointerEvent) => {
+    const move = (e: PointerEvent) => {
       if (!drawing) return;
-      const p = point(event);
-      context.lineWidth = 2;
-      context.lineCap = "round";
-      context.lineTo(p.x, p.y);
-      context.stroke();
+      ctx.lineTo(e.offsetX, e.offsetY);
+      ctx.stroke();
+      onChange(true);
     };
     const up = () => {
       drawing = false;
     };
     canvas.addEventListener("pointerdown", down);
     canvas.addEventListener("pointermove", move);
-    canvas.addEventListener("pointerup", up);
-    canvas.addEventListener("pointerleave", up);
+    window.addEventListener("pointerup", up);
     return () => {
       canvas.removeEventListener("pointerdown", down);
       canvas.removeEventListener("pointermove", move);
-      canvas.removeEventListener("pointerup", up);
-      canvas.removeEventListener("pointerleave", up);
+      window.removeEventListener("pointerup", up);
     };
-  }, []);
+  }, [onChange]);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <canvas
+        ref={ref}
+        aria-label={copy.panel.drawLabel}
+        className="h-28 w-full touch-none rounded-md border bg-background"
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-7 self-end px-2 text-muted-foreground"
+        onClick={() => {
+          const c = ref.current;
+          c?.getContext("2d")?.clearRect(0, 0, c.width, c.height);
+          onChange(false);
+        }}
+      >
+        {copy.panel.clear}
+      </Button>
+    </div>
+  );
+}
+
+export function SignPage({ docId }: { docId: string }) {
+  const id = useId();
+  const firm = useFirm();
+  const { user, matter } = usePortal();
+  const doc = useDemoStore((s) => s.documents.find((d) => d.id === docId));
+  // Null until edited, so the signed-in name fills in after hydration.
+  const [typed, setTyped] = useState<string | null>(null);
+  const name = typed ?? user?.name ?? "";
+  const setName = setTyped;
+  const [mode, setMode] = useState("type");
+  const [drawn, setDrawn] = useState(false);
+  const [consent, setConsent] = useState(false);
+  const p = copy.panel;
 
   if (!doc)
     return (
-      <div className="mx-auto max-w-2xl py-10">
-        <Button
-          variant="link"
-          render={<Link href="/portal/documents" />}
-          nativeButton={false}
-        >
-          ← Documents
-        </Button>
-        <h1 className="mt-6 text-4xl">Document not found</h1>
-      </div>
+      <PortalPage title={copy.notFound} back={back}>
+        <CardEmpty>{copy.notFound}</CardEmpty>
+      </PortalPage>
     );
-  if (signed)
+
+  if (doc.status === "signed")
     return (
-      <div className="mx-auto max-w-xl py-16 text-center">
-        <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-foreground text-3xl text-background">
-          ✓
-        </div>
-        <h1 className="mt-6 text-4xl">Document signed</h1>
-        <p className="mt-3 text-muted-foreground">
-          Signed on {formatDate(doc.signedAt ?? new Date().toISOString(), true)}
-        </p>
-        <Button
-          className="mt-8"
-          render={<Link href="/portal/documents" />}
-          nativeButton={false}
-        >
-          Back to documents
-        </Button>
-      </div>
+      <PortalPage title={doc.name} back={back}>
+        <Card className="max-w-xl">
+          <CardContent className="flex gap-4">
+            <HugeiconsIcon
+              icon={CheckmarkCircle02Icon}
+              strokeWidth={1.5}
+              className="size-6 shrink-0"
+            />
+            <div className="flex flex-col items-start gap-1">
+              <p className="text-sm font-medium">{copy.done.title}</p>
+              <p className="text-sm text-muted-foreground">
+                {copy.done.detail(
+                  formatDate(doc.signedAt ?? doc.uploadedAt, true),
+                )}
+              </p>
+              <Button
+                size="sm"
+                className="mt-3 h-8"
+                nativeButton={false}
+                render={<Link href="/portal/documents" />}
+              >
+                {copy.done.back}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </PortalPage>
     );
+
+  const signerName = user?.name ?? name;
+  const ready =
+    consent && name.trim().length >= 3 && (mode === "type" || drawn);
+
   return (
-    <div className="space-y-6">
-      <header>
-        <Button
-          variant="link"
-          className="px-0"
-          render={<Link href="/portal/documents" />}
-          nativeButton={false}
-        >
-          ← Documents
-        </Button>
-        <h1 className="mt-2 text-4xl">{doc.name}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Read the full document before signing.
-        </p>
-      </header>
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,760px)_320px]">
-        <article className="min-h-[760px] rounded-sm border bg-white p-8 shadow-sm sm:p-14">
-          <p className="text-center font-serif text-2xl">
-            Medical Records Authorization
+    <PortalPage title={doc.name} description={copy.intro} back={back}>
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <article className="rounded-md border bg-background px-6 py-10 sm:px-12 sm:py-14">
+          <p className="text-xs text-muted-foreground uppercase tracking-[0.08em]">
+            {copy.demoLabel}
           </p>
-          <p className="mt-2 text-center text-xs uppercase tracking-widest text-muted-foreground">
-            Fictional demo document
+          <h2 className="mt-3 text-[28px] leading-tight">{doc.name}</h2>
+          <div className="mt-8 flex max-w-prose flex-col gap-5 text-[15px] leading-7">
+            {copy.sample
+              .body(signerName, doc.name, matter?.title ?? "", firm.legalName)
+              .map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+          </div>
+          <p className="mt-12 border-t pt-4 text-xs text-muted-foreground tabular-nums">
+            {copy.sample.footer(signerName, matter?.id ?? "")}
           </p>
-          <div className="mt-12 space-y-6 leading-8">
-            <p>
-              I, <strong>Maria Delgado</strong>, authorize the health care
-              providers identified for my matter to provide relevant medical
-              records and billing information to Calloway &amp; Reyes.
-            </p>
-            <p>
-              This authorization is limited to information reasonably related to
-              the fictional matter <strong>Delgado v. Ridgeline Freight</strong>
-              . It may be used by my legal team to evaluate and present my
-              claim.
-            </p>
-            <p>
-              I understand that I may ask questions before signing and that I
-              may revoke this authorization in writing, except where action has
-              already been taken in reliance on it.
-            </p>
-            <p>
-              This sample is provided only to demonstrate the portal signing
-              experience. It is not a real authorization and has no legal
-              effect.
-            </p>
-          </div>
-          <div className="mt-20 border-t pt-6 text-sm text-muted-foreground">
-            Client: Maria Delgado
-            <br />
-            Matter: M-2026-0142
-          </div>
         </article>
-        <Card className="xl:sticky xl:top-8">
-          <CardHeader>
-            <CardTitle>Your signature</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid gap-2">
-              <Label htmlFor="legal-name">Full legal name</Label>
-              <Input
-                id="legal-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            </div>
-            <Tabs defaultValue="type">
-              <TabsList className="w-full">
-                <TabsTrigger value="type">Type</TabsTrigger>
-                <TabsTrigger value="draw">Draw instead</TabsTrigger>
-              </TabsList>
-              <TabsContent value="type">
-                <div className="mt-2 flex min-h-24 items-center justify-center rounded-lg border bg-white px-4 font-serif text-3xl italic">
-                  {name || "Your signature"}
-                </div>
-              </TabsContent>
-              <TabsContent value="draw">
-                <canvas
-                  ref={canvasRef}
-                  width={280}
-                  height={120}
-                  className="mt-2 w-full touch-none rounded-lg border bg-white"
-                  aria-label="Signature drawing pad"
-                />
-                <Button
-                  variant="ghost"
-                  className="mt-1"
-                  onClick={() =>
-                    canvasRef.current
-                      ?.getContext("2d")
-                      ?.clearRect(0, 0, 300, 140)
-                  }
-                >
-                  Clear
-                </Button>
-              </TabsContent>
-            </Tabs>
-            <div>
-              <p className="text-xs text-muted-foreground">Date</p>
-              <p>{formatDate(new Date().toISOString())}</p>
-            </div>
-            <Label className="flex items-start gap-3 leading-relaxed">
-              <Checkbox
-                checked={consent}
-                onCheckedChange={(value) => setConsent(value === true)}
-              />
-              I agree to sign this document electronically.
-            </Label>
-            <Button
-              className="w-full"
-              disabled={!consent || name.trim().length < 3}
-              onClick={() => {
-                if (signPortalDocument(doc.id, name.trim())) setSigned(true);
+
+        <Card className="xl:sticky xl:top-20">
+          <CardContent>
+            <form
+              className="flex flex-col gap-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (ready) signPortalDocument(doc.id, name.trim());
               }}
             >
-              Sign &amp; submit
-            </Button>
+              <h2 className="font-sans text-sm font-semibold tracking-normal">
+                {p.title}
+              </h2>
+              <Field>
+                <FieldLabel htmlFor={`${id}-name`}>{p.name}</FieldLabel>
+                <Input
+                  id={`${id}-name`}
+                  value={name}
+                  autoComplete="name"
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </Field>
+              <Tabs
+                value={mode}
+                onValueChange={(v) => setMode(String(v))}
+                className="gap-3"
+              >
+                <TabsList className="w-full">
+                  <TabsTrigger value="type">{p.type}</TabsTrigger>
+                  <TabsTrigger value="draw">{p.draw}</TabsTrigger>
+                </TabsList>
+                <TabsContent value="type">
+                  <div className="flex h-28 items-center justify-center rounded-md border bg-background px-4 font-serif text-[30px] italic">
+                    {name || (
+                      <span className="text-muted-foreground">
+                        {p.placeholder}
+                      </span>
+                    )}
+                  </div>
+                </TabsContent>
+                <TabsContent value="draw">
+                  <SignaturePad onChange={setDrawn} />
+                </TabsContent>
+              </Tabs>
+              <div className="text-sm">
+                <p className="text-xs text-muted-foreground">{p.date}</p>
+                <p className="mt-1 tabular-nums">
+                  {formatDate(new Date().toISOString())}
+                </p>
+              </div>
+              {/* biome-ignore lint/a11y/noLabelWithoutControl: the checkbox renders inside the label */}
+              <label className="flex items-start gap-2 text-sm leading-relaxed">
+                <Checkbox
+                  className="mt-0.5"
+                  checked={consent}
+                  onCheckedChange={(on) => setConsent(on === true)}
+                />
+                {p.consent}
+              </label>
+              <Button type="submit" size="sm" className="h-9" disabled={!ready}>
+                {p.submit}
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PortalPage>
   );
 }

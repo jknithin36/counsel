@@ -25,8 +25,8 @@ export const portalPreview = {
     { key: "appointments", label: "Appointments" },
   ],
   user: { initials: "MD", name: "Maria D.", role: "Client" },
-  title: "Maria's Case",
-  actions: { message: "Message attorney", upload: "Upload document" },
+  title: "Hello, Maria",
+  actions: { message: "Message your team", upload: "Upload document" },
   notice: {
     text: "2 documents are waiting for your signature.",
     link: "Review",

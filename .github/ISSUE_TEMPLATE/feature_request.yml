@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest a focused improvement to Counsel
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the smallest useful solution and alternatives.
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope checks
+      options:
+        - label: This can remain backend-agnostic.
+          required: true
+        - label: This does not require real client data.
+          required: true

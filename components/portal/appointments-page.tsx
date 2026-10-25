@@ -1,8 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import {
+  CalendarAdd01Icon,
+  Call02Icon,
+  Location01Icon,
+  Video01Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { format } from "date-fns";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -12,27 +21,29 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
-import { firm } from "@/lib/config/firm";
+import { appointmentsPage as copy } from "@/lib/content/portal";
 import { requestAppointment } from "@/lib/data/portal";
 import { findDemoUser } from "@/lib/data/seed/users";
 import { useDemoStore } from "@/lib/data/store";
 import type { MeetingType, PortalAppointment } from "@/lib/data/types";
-import { formatDate } from "@/lib/format";
-import { MATTER_ID, PortalPage } from "./shared";
+import { useFirm } from "@/lib/site-content";
+import { ChoiceSelect } from "../dashboard/content/shared";
+import { CardEmpty } from "../dashboard/section-card";
+import { PortalPage } from "./shared";
+import { usePortal } from "./use-portal";
 
-function downloadCalendar(appointment: PortalAppointment) {
+const typeIcon = {
+  video: Video01Icon,
+  phone: Call02Icon,
+  in_person: Location01Icon,
+};
+
+function downloadCalendar(appointment: PortalAppointment, firmName: string) {
   const start = new Date(appointment.start);
   const end = new Date(start.getTime() + 45 * 60_000);
   const stamp = (date: Date) =>
@@ -40,173 +51,221 @@ function downloadCalendar(appointment: PortalAppointment) {
       .toISOString()
       .replace(/[-:]/g, "")
       .replace(/\.\d{3}/, "");
-  const text = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nUID:${appointment.id}@counsel.demo\nDTSTART:${stamp(start)}\nDTEND:${stamp(end)}\nSUMMARY:${appointment.agenda}\nDESCRIPTION:Fictional appointment with Calloway and Reyes\nEND:VEVENT\nEND:VCALENDAR`;
-  const url = URL.createObjectURL(new Blob([text], { type: "text/calendar" }));
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "BEGIN:VEVENT",
+    `UID:${appointment.id}@counsel.demo`,
+    `DTSTART:${stamp(start)}`,
+    `DTEND:${stamp(end)}`,
+    `SUMMARY:${firmName}: ${appointment.agenda}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ];
+  const url = URL.createObjectURL(
+    new Blob([lines.join("\r\n")], { type: "text/calendar" }),
+  );
   const link = document.createElement("a");
   link.href = url;
-  link.download = "counsel-appointment.ics";
+  link.download = `appointment-${format(start, "yyyy-MM-dd")}.ics`;
   link.click();
   URL.revokeObjectURL(url);
 }
 
 function RequestDialog({ appointment }: { appointment?: PortalAppointment }) {
+  const id = useId();
+  const d = copy.dialog;
   const [open, setOpen] = useState(false);
-  const [topic, setTopic] = useState(
-    appointment ? "Reschedule request" : "Case update",
-  );
+  const [topic, setTopic] = useState("");
   const [type, setType] = useState<MeetingType>(appointment?.type ?? "video");
   const [times, setTimes] = useState<string[]>([]);
-  const options = ["Weekday mornings", "Weekday afternoons", "After 5 PM"];
-  const submit = () => {
+
+  function change(next: boolean) {
+    setOpen(next);
+    if (!next) {
+      setTopic("");
+      setTimes([]);
+    }
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
     requestAppointment({
-      topic,
+      topic: topic.trim(),
       type,
-      preferredTimes: times.length ? times : ["Please contact me"],
+      preferredTimes: times.length ? times : [d.anyTime],
       rescheduleId: appointment?.id,
     });
-    toast.add({
-      title: "Request sent",
-      description: "Your legal team will confirm a time.",
-      type: "success",
-    });
-    setOpen(false);
-  };
+    toast.add({ title: d.done, description: d.doneDetail });
+    change(false);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={change}>
       <DialogTrigger
-        render={<Button variant={appointment ? "outline" : "default"} />}
+        render={
+          <Button
+            variant={appointment ? "outline" : "default"}
+            size="sm"
+            className="h-8"
+          />
+        }
       >
-        {appointment ? "Request to reschedule" : "Request an appointment"}
+        {appointment ? copy.reschedule : copy.request}
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {appointment ? "Request to reschedule" : "Request an appointment"}
-          </DialogTitle>
-          <DialogDescription>
-            This sends a message to your legal team. It does not change the
-            calendar yet.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-2">
-          <Label htmlFor="appointment-topic">
-            {appointment ? "Reason" : "Topic"}
-          </Label>
-          {appointment ? (
-            <Textarea
-              id="appointment-topic"
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
+      <DialogContent className="sm:max-w-md">
+        <form className="flex flex-col gap-5" onSubmit={submit}>
+          <DialogHeader>
+            <DialogTitle>
+              {appointment ? d.rescheduleTitle : d.title}
+            </DialogTitle>
+            <DialogDescription>{d.description}</DialogDescription>
+          </DialogHeader>
+          <Field>
+            <FieldLabel htmlFor={`${id}-topic`}>
+              {appointment ? d.reason : d.topic}
+            </FieldLabel>
+            {appointment ? (
+              <Textarea
+                id={`${id}-topic`}
+                rows={3}
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+              />
+            ) : (
+              <Input
+                id={`${id}-topic`}
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+              />
+            )}
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${id}-type`}>{d.type}</FieldLabel>
+            <ChoiceSelect
+              id={`${id}-type`}
+              value={type}
+              onChange={(v) => setType(v as MeetingType)}
+              options={(Object.keys(copy.types) as MeetingType[]).map((t) => ({
+                value: t,
+                label: copy.types[t],
+              }))}
             />
-          ) : (
-            <Input
-              id="appointment-topic"
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-            />
-          )}
-        </div>
-        <div className="grid gap-2">
-          <Label>Meeting type</Label>
-          <Select
-            value={type}
-            onValueChange={(value) => setType(value as MeetingType)}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="video">Video</SelectItem>
-              <SelectItem value="phone">Phone</SelectItem>
-              <SelectItem value="in_person">In person</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <fieldset>
-          <legend className="text-sm font-medium">Preferred times</legend>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {options.map((option) => (
-              <Button
-                key={option}
-                type="button"
-                variant={times.includes(option) ? "default" : "outline"}
-                onClick={() =>
-                  setTimes((current) =>
-                    current.includes(option)
-                      ? current.filter((item) => item !== option)
-                      : [...current, option],
-                  )
-                }
-              >
+          </Field>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 text-sm font-medium">{d.times}</legend>
+            {d.timeOptions.map((option) => (
+              // biome-ignore lint/a11y/noLabelWithoutControl: the checkbox renders inside the label
+              <label key={option} className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={times.includes(option)}
+                  onCheckedChange={(on) =>
+                    setTimes((list) =>
+                      on ? [...list, option] : list.filter((t) => t !== option),
+                    )
+                  }
+                />
                 {option}
-              </Button>
+              </label>
             ))}
-          </div>
-        </fieldset>
-        <DialogFooter>
-          <Button onClick={submit} disabled={!topic.trim()}>
-            Send request
-          </Button>
-        </DialogFooter>
+          </fieldset>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => change(false)}
+            >
+              {d.cancel}
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              className="h-8"
+              disabled={!topic.trim()}
+            >
+              {d.submit}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
 }
 
 function AppointmentCard({ appointment }: { appointment: PortalAppointment }) {
-  const user = findDemoUser(appointment.withId);
-  const withinJoinWindow =
-    Math.abs(new Date(appointment.start).getTime() - Date.now()) <= 15 * 60_000;
+  const firm = useFirm();
+  const person = findDemoUser(appointment.withId);
+  const start = new Date(appointment.start);
+  const joinable = Math.abs(start.getTime() - Date.now()) <= 15 * 60_000;
+  const upcoming = appointment.status === "upcoming";
+
   return (
     <Card>
-      <CardHeader>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+      <CardContent className="flex flex-col gap-5 sm:flex-row">
+        <div className="flex w-20 shrink-0 flex-col items-start sm:items-center sm:border-r sm:pr-5">
+          <span className="text-xs text-muted-foreground uppercase">
+            {format(start, "MMM")}
+          </span>
+          <span className="font-serif text-[40px] leading-none tabular-nums">
+            {format(start, "d")}
+          </span>
+          <span className="mt-1 text-xs text-muted-foreground">
+            {format(start, "EEE")}
+          </span>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div>
-            <CardTitle className="text-2xl">
-              {formatDate(appointment.start)}
-            </CardTitle>
-            <p className="mt-1 text-muted-foreground">
-              {formatDate(appointment.start, true).split(", ").at(-1)} ·{" "}
-              {appointment.type.replace("_", " ")}
+            <p className="text-sm font-medium">{appointment.agenda}</p>
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+              <span className="tabular-nums">{format(start, "h:mm a")}</span>
+              <span aria-hidden="true">·</span>
+              <span className="inline-flex items-center gap-1">
+                <HugeiconsIcon
+                  icon={typeIcon[appointment.type]}
+                  strokeWidth={1.5}
+                  className="size-4"
+                />
+                {copy.types[appointment.type]}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span>{copy.with(person?.name ?? "")}</span>
             </p>
           </div>
-          <span className="text-sm">With {user?.name}</span>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p>{appointment.agenda}</p>
-        {appointment.type === "video" && (
-          <Button
-            disabled={!withinJoinWindow}
-            title={
-              withinJoinWindow
-                ? "Join now"
-                : "Available 15 minutes before the appointment"
-            }
-          >
-            Join video call
-          </Button>
-        )}
-        {appointment.type === "phone" && (
-          <p className="rounded-lg bg-muted p-3">
-            We'll call you at (555) 555-2300.
-          </p>
-        )}
-        {appointment.type === "in_person" && (
-          <p className="rounded-lg bg-muted p-3">
-            {firm.address.line1}, {firm.address.city}, {firm.address.region}{" "}
-            {firm.address.postalCode}
-          </p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={() => downloadCalendar(appointment)}
-          >
-            Add to calendar
-          </Button>
-          {appointment.status === "upcoming" && (
-            <RequestDialog appointment={appointment} />
+          {upcoming && appointment.type === "phone" && (
+            <p className="text-sm text-muted-foreground">{copy.phone}</p>
+          )}
+          {upcoming && appointment.type === "in_person" && (
+            <p className="text-sm text-muted-foreground">
+              {firm.line1}, {firm.city}, {firm.region} {firm.postalCode}
+            </p>
+          )}
+          {upcoming && (
+            <div className="flex flex-wrap gap-2">
+              {appointment.type === "video" && (
+                <Button size="sm" className="h-8" disabled={!joinable}>
+                  {copy.join}
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => downloadCalendar(appointment, firm.name)}
+              >
+                <HugeiconsIcon
+                  icon={CalendarAdd01Icon}
+                  strokeWidth={2}
+                  data-icon="inline-start"
+                />
+                {copy.calendar}
+              </Button>
+              <RequestDialog appointment={appointment} />
+            </div>
+          )}
+          {upcoming && appointment.type === "video" && !joinable && (
+            <p className="text-xs text-muted-foreground">{copy.joinHint}</p>
           )}
         </div>
       </CardContent>
@@ -215,43 +274,43 @@ function AppointmentCard({ appointment }: { appointment: PortalAppointment }) {
 }
 
 export function AppointmentsPage() {
-  const allAppointments = useDemoStore((s) => s.appointments);
-  const appointments = allAppointments.filter(
-    (item) => item.matterId === MATTER_ID,
-  );
+  const { matter } = usePortal();
+  const all = useDemoStore((s) => s.appointments);
+  const mine = all.filter((a) => a.matterId === matter?.id);
+  const upcoming = mine
+    .filter((a) => a.status === "upcoming")
+    .sort((a, b) => a.start.localeCompare(b.start));
+  const past = mine
+    .filter((a) => a.status === "past")
+    .sort((a, b) => b.start.localeCompare(a.start));
+
   return (
     <PortalPage
-      title="Appointments"
-      description="Your meetings and calls with the legal team."
+      title={copy.title}
+      description={copy.subtitle}
       actions={<RequestDialog />}
     >
-      <Tabs defaultValue="upcoming">
+      <Tabs defaultValue="upcoming" className="gap-4">
         <TabsList>
-          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="past">Past</TabsTrigger>
+          <TabsTrigger value="upcoming" className="px-3">
+            {copy.tabs.upcoming}
+          </TabsTrigger>
+          <TabsTrigger value="past" className="px-3">
+            {copy.tabs.past}
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="upcoming" className="mt-4 space-y-4">
-          {appointments
-            .filter((item) => item.status === "upcoming")
-            .map((item) => (
-              <AppointmentCard key={item.id} appointment={item} />
-            ))}
-          {!appointments.some((item) => item.status === "upcoming") && (
-            <p className="rounded-lg border p-8 text-center text-muted-foreground">
-              No upcoming appointments.
-            </p>
+        <TabsContent value="upcoming" className="flex max-w-3xl flex-col gap-4">
+          {upcoming.length === 0 ? (
+            <CardEmpty>{copy.emptyUpcoming}</CardEmpty>
+          ) : (
+            upcoming.map((a) => <AppointmentCard key={a.id} appointment={a} />)
           )}
         </TabsContent>
-        <TabsContent value="past" className="mt-4 space-y-4">
-          {appointments
-            .filter((item) => item.status === "past")
-            .map((item) => (
-              <AppointmentCard key={item.id} appointment={item} />
-            ))}
-          {!appointments.some((item) => item.status === "past") && (
-            <p className="rounded-lg border p-8 text-center text-muted-foreground">
-              No past appointments.
-            </p>
+        <TabsContent value="past" className="flex max-w-3xl flex-col gap-4">
+          {past.length === 0 ? (
+            <CardEmpty>{copy.emptyPast}</CardEmpty>
+          ) : (
+            past.map((a) => <AppointmentCard key={a.id} appointment={a} />)
           )}
         </TabsContent>
       </Tabs>

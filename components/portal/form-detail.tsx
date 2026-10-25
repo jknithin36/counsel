@@ -1,340 +1,400 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import Link from "next/link";
+import { Delete02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import { toast } from "@/components/ui/toast";
+import { formDetail as copy } from "@/lib/content/portal";
 import { emptyProvider, savePortalForm } from "@/lib/data/portal";
 import { useDemoStore } from "@/lib/data/store";
+import type { PortalForm, PortalFormData } from "@/lib/data/types";
 import { formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { CardEmpty, SectionCard } from "../dashboard/section-card";
+import { TipButton } from "../dashboard/tip-button";
+import { usePortalStatus } from "./provider";
+import { PortalPage } from "./shared";
 
+const e = copy.errors;
 const schema = z.object({
   providers: z
     .array(
       z.object({
         id: z.string(),
-        name: z.string().min(2, "Provider name is required"),
-        specialty: z.string().min(2, "Specialty is required"),
-        phone: z.string().min(7, "Phone is required"),
-        firstVisit: z.string().min(1, "First visit date is required"),
+        name: z.string().trim().min(2, e.name),
+        specialty: z.string().trim().min(2, e.specialty),
+        phone: z.string().trim().min(7, e.phone),
+        firstVisit: z.string().min(1, e.firstVisit),
         stillTreating: z.boolean(),
       }),
     )
-    .min(1, "Add at least one provider"),
-  insurance: z.string().min(2, "Insurance information is required"),
-  pharmacy: z.string().min(2, "Pharmacy is required"),
-  consent: z.boolean().refine(Boolean, "Please confirm before submitting"),
+    .min(1, e.providers),
+  insurance: z.string().trim().min(2, e.insurance),
+  pharmacy: z.string().trim().min(2, e.pharmacy),
+  consent: z.boolean().refine(Boolean, e.consent),
 });
-type FormValues = z.infer<typeof schema>;
+type Values = z.infer<typeof schema>;
+
+const back = { href: "/portal/forms", label: copy.back };
+const r = copy.review;
+
+/** Read-only answers, used for review and for submitted forms. */
+function Answers({ data }: { data: PortalFormData }) {
+  return (
+    <dl className="flex flex-col gap-5 text-sm">
+      <div>
+        <dt className="text-xs text-muted-foreground">{r.providers}</dt>
+        <dd className="mt-2">
+          {data.providers.length === 0 ? (
+            r.none
+          ) : (
+            <ul className="flex flex-col divide-y rounded-md border">
+              {data.providers.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex flex-wrap justify-between gap-x-4 gap-y-1 px-3 py-2.5"
+                >
+                  <span>
+                    <span className="font-medium">{p.name}</span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {p.specialty}
+                    </span>
+                  </span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {p.phone}
+                    {p.firstVisit && ` · ${formatDate(p.firstVisit)}`}
+                    {p.stillTreating && ` · ${r.still}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </dd>
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div>
+          <dt className="text-xs text-muted-foreground">{r.insurance}</dt>
+          <dd className="mt-1">{data.insurance || r.none}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">{r.pharmacy}</dt>
+          <dd className="mt-1">{data.pharmacy || r.none}</dd>
+        </div>
+      </div>
+    </dl>
+  );
+}
 
 export function FormDetail({ formId }: { formId: string }) {
-  const formRecord = useDemoStore((s) =>
-    s.portalForms.find((form) => form.id === formId),
+  const record = useDemoStore((s) =>
+    s.portalForms.find((f) => f.id === formId),
   );
+  const ready = usePortalStatus() === "ready";
+
+  if (!record)
+    return (
+      <PortalPage title={ready ? copy.notFound : ""} back={back}>
+        <CardEmpty>{copy.notFound}</CardEmpty>
+      </PortalPage>
+    );
+
+  if (record.status === "submitted")
+    return (
+      <PortalPage
+        title={record.name}
+        description={copy.submittedOn(
+          formatDate(record.submittedAt ?? record.updatedAt),
+        )}
+        back={back}
+      >
+        <SectionCard title={copy.answers} className="max-w-3xl">
+          <Answers data={record.data} />
+        </SectionCard>
+      </PortalPage>
+    );
+
+  return <Wizard record={record} />;
+}
+
+/** The three-step questionnaire; mounted once the saved answers exist. */
+function Wizard({ record }: { record: PortalForm }) {
+  const formId = record.id;
   const [step, setStep] = useState(0);
-  const form = useForm<FormValues>({
+  const form = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: formRecord?.data ?? {
-      providers: [emptyProvider()],
-      insurance: "",
-      pharmacy: "",
-      consent: false,
+    defaultValues: {
+      ...record.data,
+      providers: record.data.providers.length
+        ? record.data.providers
+        : [emptyProvider()],
     },
-    mode: "onBlur",
+    mode: "onTouched",
   });
-  const fields = useFieldArray({ control: form.control, name: "providers" });
+  const providers = useFieldArray({ control: form.control, name: "providers" });
+  const errors = form.formState.errors;
+
+  // Autosave as the client types. A field showing an error is re-checked
+  // on every change, so the message clears as soon as it's fixed (instead
+  // of on blur, which shifts the layout under the Continue button).
   useEffect(() => {
-    const subscription = form.watch((value) => {
-      if (formRecord && formRecord.status !== "submitted")
-        savePortalForm(formId, value as FormValues);
+    const sub = form.watch((value, { name }) => {
+      savePortalForm(formId, value as Values);
+      if (name && form.getFieldState(name).invalid) form.trigger(name);
     });
-    return () => subscription.unsubscribe();
-  }, [form, formId, formRecord]);
-  if (!formRecord)
-    return (
-      <div>
-        <Button
-          variant="link"
-          render={<Link href="/portal/forms" />}
-          nativeButton={false}
-        >
-          ← Forms
-        </Button>
-        <h1 className="mt-6 text-4xl">Form not found</h1>
-      </div>
-    );
-  if (formRecord.status === "submitted")
-    return (
-      <div className="space-y-6">
-        <Button
-          variant="link"
-          className="px-0"
-          render={<Link href="/portal/forms" />}
-          nativeButton={false}
-        >
-          ← Forms
-        </Button>
-        <header>
-          <h1 className="text-4xl">{formRecord.name}</h1>
-          <p className="mt-2 text-muted-foreground">
-            Submitted{" "}
-            {formatDate(formRecord.submittedAt ?? formRecord.updatedAt)}
-          </p>
-        </header>
-        <Card>
-          <CardHeader>
-            <CardTitle>Your answers</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {formRecord.data.providers.length ? (
-              formRecord.data.providers.map((provider) => (
-                <dl
-                  key={provider.id}
-                  className="grid gap-2 rounded-lg border p-4 sm:grid-cols-2"
-                >
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Provider</dt>
-                    <dd>{provider.name}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Specialty</dt>
-                    <dd>{provider.specialty}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Phone</dt>
-                    <dd>{provider.phone}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">
-                      First visit
-                    </dt>
-                    <dd>{provider.firstVisit}</dd>
-                  </div>
-                </dl>
-              ))
-            ) : (
-              <p>No providers were included on this form.</p>
-            )}
-            <p>
-              <span className="text-muted-foreground">Insurance:</span>{" "}
-              {formRecord.data.insurance || "Not provided"}
-            </p>
-            <p>
-              <span className="text-muted-foreground">Pharmacy:</span>{" "}
-              {formRecord.data.pharmacy || "Not provided"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  const next = async () => {
-    if (step === 0) {
-      const valid = await form.trigger("providers");
-      if (!valid) return;
-    }
-    if (step === 1) {
-      const valid = await form.trigger(["insurance", "pharmacy"]);
-      if (!valid) return;
-    }
-    setStep((current) => Math.min(2, current + 1));
-  };
+    return () => sub.unsubscribe();
+  }, [form, formId]);
+
+  async function next() {
+    const ok =
+      step === 0
+        ? await form.trigger("providers")
+        : await form.trigger(["insurance", "pharmacy"]);
+    if (ok) setStep((s) => s + 1);
+  }
+
   const submit = form.handleSubmit((values) => {
     savePortalForm(formId, values, true);
-    toast.add({
-      title: "Form submitted",
-      description: "Your legal team can now review it.",
-      type: "success",
-    });
+    toast.add({ title: copy.submitted, description: copy.submittedDetail });
   });
+
+  const err = (m?: string) => (m ? m : undefined);
+
   return (
-    <div className="space-y-6">
-      <Button
-        variant="link"
-        className="px-0"
-        render={<Link href="/portal/forms" />}
-        nativeButton={false}
-      >
-        ← Forms
-      </Button>
-      <header>
-        <h1 className="text-4xl">{formRecord.name}</h1>
-        <p className="mt-2 text-muted-foreground">
-          Your answers save automatically.
-        </p>
-      </header>
-      <div>
-        <div className="mb-2 flex justify-between text-xs text-muted-foreground">
-          <span>Step {step + 1} of 3</span>
-          <span>
-            {["Providers", "Insurance and pharmacy", "Review and submit"][step]}
-          </span>
-        </div>
-        <Progress value={(step + 1) * 33.333} />
-      </div>
-      <form onSubmit={submit}>
-        <Card>
-          <CardContent className="space-y-6 pt-1">
+    <PortalPage title={record.name} description={copy.autosave} back={back}>
+      <form onSubmit={submit} className="flex max-w-3xl flex-col gap-4">
+        <ol
+          className="grid grid-cols-3 gap-2"
+          aria-label={copy.stepOf(step + 1, 3)}
+        >
+          {copy.steps.map((label, i) => (
+            <li key={label} aria-current={i === step ? "step" : undefined}>
+              <span
+                className={cn(
+                  "block h-1 rounded-full",
+                  i <= step ? "bg-foreground" : "bg-border",
+                )}
+              />
+              <span
+                className={cn(
+                  "mt-2 block text-xs",
+                  i === step
+                    ? "font-medium text-foreground"
+                    : "text-muted-foreground",
+                )}
+              >
+                <span className="sm:hidden">{i + 1}</span>
+                <span className="hidden sm:inline">{label}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+
+        <Card className="gap-0 py-0">
+          <CardContent className="flex flex-col gap-5 py-5">
+            <h2 className="font-sans text-sm font-semibold tracking-normal">
+              {copy.stepOf(step + 1, 3)} · {copy.steps[step]}
+            </h2>
+
             {step === 0 && (
-              <div className="space-y-5">
-                {fields.fields.map((field, index) => (
-                  <fieldset
-                    key={field.id}
-                    className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"
-                  >
-                    <legend className="px-2 font-medium">
-                      Provider {index + 1}
-                    </legend>
-                    <div className="grid gap-2">
-                      <Label htmlFor={`provider-${index}`}>
-                        Provider or clinic name
-                      </Label>
-                      <Input
-                        id={`provider-${index}`}
-                        {...form.register(`providers.${index}.name`)}
-                      />
-                      <p className="text-xs text-destructive">
-                        {
-                          form.formState.errors.providers?.[index]?.name
-                            ?.message
-                        }
-                      </p>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor={`specialty-${index}`}>Specialty</Label>
-                      <Input
-                        id={`specialty-${index}`}
-                        {...form.register(`providers.${index}.specialty`)}
-                        placeholder="Physical therapy"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor={`phone-${index}`}>Phone</Label>
-                      <Input
-                        id={`phone-${index}`}
-                        {...form.register(`providers.${index}.phone`)}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor={`visit-${index}`}>First visit date</Label>
-                      <Input
-                        id={`visit-${index}`}
-                        type="date"
-                        {...form.register(`providers.${index}.firstVisit`)}
-                      />
-                    </div>
-                    <Label className="flex items-center gap-3">
-                      <Checkbox
-                        checked={form.watch(`providers.${index}.stillTreating`)}
-                        onCheckedChange={(value) =>
-                          form.setValue(
-                            `providers.${index}.stillTreating`,
-                            value === true,
-                          )
-                        }
-                      />
-                      Still treating here
-                    </Label>
-                    {fields.fields.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        onClick={() => fields.remove(index)}
-                      >
-                        Remove
-                      </Button>
-                    )}
-                  </fieldset>
-                ))}
+              <>
+                {providers.fields.map((field, i) => {
+                  const pe = errors.providers?.[i];
+                  return (
+                    <fieldset
+                      key={field.id}
+                      className="flex flex-col gap-4 rounded-md border p-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <legend className="text-sm font-medium">
+                          {copy.provider(i + 1)}
+                        </legend>
+                        {providers.fields.length > 1 && (
+                          <TipButton
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={copy.removeProvider(i + 1)}
+                            className="text-muted-foreground"
+                            onClick={() => providers.remove(i)}
+                          >
+                            <HugeiconsIcon
+                              icon={Delete02Icon}
+                              strokeWidth={2}
+                            />
+                          </TipButton>
+                        )}
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Field data-invalid={Boolean(pe?.name) || undefined}>
+                          <FieldLabel htmlFor={`p${i}-name`}>
+                            {copy.fields.name}
+                          </FieldLabel>
+                          <Input
+                            id={`p${i}-name`}
+                            aria-invalid={Boolean(pe?.name) || undefined}
+                            {...form.register(`providers.${i}.name`)}
+                          />
+                          <FieldError>{err(pe?.name?.message)}</FieldError>
+                        </Field>
+                        <Field
+                          data-invalid={Boolean(pe?.specialty) || undefined}
+                        >
+                          <FieldLabel htmlFor={`p${i}-specialty`}>
+                            {copy.fields.specialty}
+                          </FieldLabel>
+                          <Input
+                            id={`p${i}-specialty`}
+                            placeholder={copy.fields.specialtyPlaceholder}
+                            aria-invalid={Boolean(pe?.specialty) || undefined}
+                            {...form.register(`providers.${i}.specialty`)}
+                          />
+                          <FieldError>{err(pe?.specialty?.message)}</FieldError>
+                        </Field>
+                        <Field data-invalid={Boolean(pe?.phone) || undefined}>
+                          <FieldLabel htmlFor={`p${i}-phone`}>
+                            {copy.fields.phone}
+                          </FieldLabel>
+                          <Input
+                            id={`p${i}-phone`}
+                            type="tel"
+                            inputMode="tel"
+                            aria-invalid={Boolean(pe?.phone) || undefined}
+                            {...form.register(`providers.${i}.phone`)}
+                          />
+                          <FieldError>{err(pe?.phone?.message)}</FieldError>
+                        </Field>
+                        <Field
+                          data-invalid={Boolean(pe?.firstVisit) || undefined}
+                        >
+                          <FieldLabel htmlFor={`p${i}-visit`}>
+                            {copy.fields.firstVisit}
+                          </FieldLabel>
+                          <Input
+                            id={`p${i}-visit`}
+                            type="date"
+                            aria-invalid={Boolean(pe?.firstVisit) || undefined}
+                            {...form.register(`providers.${i}.firstVisit`)}
+                          />
+                          <FieldError>
+                            {err(pe?.firstVisit?.message)}
+                          </FieldError>
+                        </Field>
+                      </div>
+                      {/* biome-ignore lint/a11y/noLabelWithoutControl: the checkbox renders inside the label */}
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={form.watch(`providers.${i}.stillTreating`)}
+                          onCheckedChange={(on) =>
+                            form.setValue(
+                              `providers.${i}.stillTreating`,
+                              on === true,
+                            )
+                          }
+                        />
+                        {copy.fields.stillTreating}
+                      </label>
+                    </fieldset>
+                  );
+                })}
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => fields.append(emptyProvider())}
+                  size="sm"
+                  className="h-8 self-start"
+                  onClick={() => providers.append(emptyProvider())}
                 >
-                  Add another provider
+                  {copy.addProvider}
                 </Button>
-              </div>
+              </>
             )}
+
             {step === 1 && (
-              <div className="space-y-5">
-                <div className="grid gap-2">
-                  <Label htmlFor="insurance">Health insurance</Label>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field data-invalid={Boolean(errors.insurance) || undefined}>
+                  <FieldLabel htmlFor="insurance">
+                    {copy.fields.insurance}
+                  </FieldLabel>
                   <Input
                     id="insurance"
+                    placeholder={copy.fields.insurancePlaceholder}
+                    aria-invalid={Boolean(errors.insurance) || undefined}
                     {...form.register("insurance")}
-                    placeholder="Company and member number"
                   />
-                  <p className="text-xs text-destructive">
-                    {form.formState.errors.insurance?.message}
-                  </p>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="pharmacy">Preferred pharmacy</Label>
+                  <FieldError>{err(errors.insurance?.message)}</FieldError>
+                </Field>
+                <Field data-invalid={Boolean(errors.pharmacy) || undefined}>
+                  <FieldLabel htmlFor="pharmacy">
+                    {copy.fields.pharmacy}
+                  </FieldLabel>
                   <Input
                     id="pharmacy"
+                    placeholder={copy.fields.pharmacyPlaceholder}
+                    aria-invalid={Boolean(errors.pharmacy) || undefined}
                     {...form.register("pharmacy")}
-                    placeholder="Name and location"
                   />
-                  <p className="text-xs text-destructive">
-                    {form.formState.errors.pharmacy?.message}
-                  </p>
-                </div>
+                  <FieldError>{err(errors.pharmacy?.message)}</FieldError>
+                </Field>
               </div>
             )}
+
             {step === 2 && (
-              <div className="space-y-5">
-                <div className="rounded-lg bg-muted p-4">
-                  <p className="font-medium">Please review your answers</p>
-                  <p className="mt-2 text-muted-foreground">
-                    You listed {form.getValues("providers").length} provider(s),{" "}
-                    {form.getValues("insurance") || "no insurance"}, and{" "}
-                    {form.getValues("pharmacy") || "no pharmacy"}.
-                  </p>
+              <>
+                <Answers data={form.getValues()} />
+                <div className="border-t pt-4">
+                  {/* biome-ignore lint/a11y/noLabelWithoutControl: the checkbox renders inside the label */}
+                  <label className="flex items-start gap-2 text-sm leading-relaxed">
+                    <Checkbox
+                      className="mt-0.5"
+                      checked={form.watch("consent")}
+                      onCheckedChange={(on) =>
+                        form.setValue("consent", on === true, {
+                          shouldValidate: true,
+                        })
+                      }
+                    />
+                    {copy.fields.consent}
+                  </label>
+                  {errors.consent && (
+                    <p className="mt-2 text-sm text-destructive">
+                      {errors.consent.message}
+                    </p>
+                  )}
                 </div>
-                <Label className="flex items-start gap-3 leading-relaxed">
-                  <Checkbox
-                    checked={form.watch("consent")}
-                    onCheckedChange={(value) =>
-                      form.setValue("consent", value === true, {
-                        shouldValidate: true,
-                      })
-                    }
-                  />
-                  I confirm these answers are complete and accurate to the best
-                  of my knowledge.
-                </Label>
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.consent?.message}
-                </p>
-              </div>
+              </>
             )}
-            <div className="flex justify-between border-t pt-5">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={step === 0}
-                onClick={() => setStep((current) => current - 1)}
-              >
-                Back
-              </Button>
-              {step < 2 ? (
-                <Button type="button" onClick={next}>
-                  Continue
-                </Button>
-              ) : (
-                <Button type="submit">Submit form</Button>
-              )}
-            </div>
           </CardContent>
+          <CardFooter className="justify-between border-t py-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              disabled={step === 0}
+              onClick={() => setStep((s) => s - 1)}
+            >
+              {copy.back2}
+            </Button>
+            {step < 2 ? (
+              <Button type="button" size="sm" className="h-8" onClick={next}>
+                {copy.next}
+              </Button>
+            ) : (
+              <Button type="submit" size="sm" className="h-8">
+                {copy.submit}
+              </Button>
+            )}
+          </CardFooter>
         </Card>
       </form>
-    </div>
+    </PortalPage>
   );
 }

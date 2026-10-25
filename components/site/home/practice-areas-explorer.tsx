@@ -104,7 +104,9 @@ export function PracticeAreasExplorer({
                     href={item.href}
                     className="mt-5 group/arrow inline-flex items-center gap-1.5 text-[15px] font-medium underline-offset-4 hover:underline"
                   >
-                    {linkLabel} <ArrowIcon />
+                    {linkLabel}
+                    <span className="sr-only"> about {item.title}</span>{" "}
+                    <ArrowIcon />
                   </Link>
 
                   {/* Mobile: the preview sits inside the open item. */}

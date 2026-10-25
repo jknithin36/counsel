@@ -7,7 +7,6 @@ import {
   Route01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { Metadata } from "next";
 import Link from "next/link";
 import { FaqAccordion, faqJsonLd } from "@/components/site/faq-accordion";
 import { JsonLd } from "@/components/site/json-ld";
@@ -17,11 +16,13 @@ import { SectionHeading } from "@/components/site/section-heading";
 import { Button } from "@/components/ui/button";
 import { faqs } from "@/lib/content/faq";
 import { portalHelpPage as p } from "@/lib/content/pages";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: p.metaTitle,
   description: p.intro,
-};
+  path: "/portal-help",
+});
 
 const icons = {
   timeline: Route01Icon,

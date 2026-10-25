@@ -35,7 +35,7 @@ export function TrustStrip() {
             ))}
           </dl>
 
-          <p className="mt-12 text-center text-[12px] text-[#8a8a8a]">
+          <p className="mt-12 text-center text-[12px] text-muted-foreground">
             {trustStrip.footnote}
           </p>
         </div>

@@ -1,6 +1,5 @@
 import { InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CtaBand } from "@/components/site/cta-band";
 import { ResultsDisclaimer } from "@/components/site/live/content";
@@ -9,11 +8,13 @@ import { ResultsBrowser } from "@/components/site/results/results-browser";
 import { ResultsFilterView } from "@/components/site/results/results-filter";
 import { resultsPage as copy } from "@/lib/content/pages";
 import { caseResults } from "@/lib/content/results";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: copy.metaTitle,
   description: copy.intro,
-};
+  path: "/results",
+});
 
 export default function ResultsPage() {
   return (
