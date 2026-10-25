@@ -58,7 +58,7 @@ to evaluate and straightforward to connect to the backend of your choice.
 
 ## Getting started
 
-Requirements: Node.js 20 or newer and pnpm 11.
+Requirements: Node.js 22.13 or newer and pnpm 11.
 
 ```bash
 git clone https://github.com/jknithin36/counsel.git
